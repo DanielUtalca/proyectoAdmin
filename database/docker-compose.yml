@@ -1,0 +1,22 @@
+services:
+  cesfam-db:
+    image: postgres:15-alpine
+    container_name: cesfam-db
+    ports:
+      # Se expone el puerto 5432.
+      # NOTA DE SEGURIDAD: Para producción, asegúrate de restringir el acceso a este puerto
+      # únicamente a las IPs privadas de las VMs de la API Estándar (Backend)
+      # a nivel de Firewall / Reglas de Red de la VPC de Google Cloud.
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=cesfam
+      - POSTGRES_USER=cesfam_user
+      # En producción, reemplaza este valor con una contraseña segura usando variables de entorno (.env)
+      - POSTGRES_PASSWORD=cesfam_secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: always
+
+volumes:
+  postgres_data:

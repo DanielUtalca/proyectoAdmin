@@ -1,0 +1,55 @@
+services:
+  frontend:
+    platform: linux/amd64
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cesfam-frontend-local
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+  backend:
+    platform: linux/amd64
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cesfam-backend-local
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://cesfam_user:cesfam_secure_password@database:5432/cesfam
+    depends_on:
+      - database
+    restart: always
+
+  database:
+    image: postgres:15-alpine
+    container_name: cesfam-database-local
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=cesfam
+      - POSTGRES_USER=cesfam_user
+      - POSTGRES_PASSWORD=cesfam_secure_password
+    volumes:
+      - pgdata_local:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: always
+
+  ai:
+    image: ollama/ollama:latest
+    container_name: cesfam-ai-local
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_local:/root/.ollama
+    restart: always
+
+volumes:
+  pgdata_local:
+  ollama_local:

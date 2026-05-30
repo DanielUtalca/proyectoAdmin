@@ -1,0 +1,25 @@
+# Dependencias de Node
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json.log
+
+# Archivos de entorno (nunca subir contraseñas ni secretos)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de compilación
+dist/
+build/
+out/
+
+# Archivos ocultos y temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de bases de datos locales y volúmenes locales
+pgdata/
+.ollama/

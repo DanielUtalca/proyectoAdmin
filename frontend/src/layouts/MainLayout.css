@@ -1,0 +1,23 @@
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-color);
+}
+
+.layout-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 260px; /* Espacio para el sidebar fijo */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+  .layout-content {
+    margin-left: 0;
+    padding: 1rem;
+    padding-top: 5rem; /* Espacio para un header móvil si hubiera */
+  }
+}
