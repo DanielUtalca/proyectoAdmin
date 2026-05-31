@@ -1,15 +1,26 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, Video, MapPin, LogOut, Activity } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    // Borrar el estado de sesión y redirigir
-    sessionStorage.removeItem('isAuthenticated');
+    logout();
     navigate('/login');
   };
+
+  // Genera las iniciales del avatar a partir del nombre mostrado
+  const getInitials = (nombreMostrar = '') => {
+    const words = nombreMostrar.replace(/^Dr\.\s*/i, '').trim().split(' ');
+    if (words.length >= 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+    return nombreMostrar.slice(0, 2).toUpperCase();
+  };
+
+  const nombreMostrar = user?.nombreMostrar || 'Usuario';
+  const rol = user?.rol || '';
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -36,8 +47,8 @@ const Sidebar = () => {
         <ul>
           {navItems.map((item) => (
             <li key={item.path}>
-              <NavLink 
-                to={item.path} 
+              <NavLink
+                to={item.path}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <span className="nav-icon">{item.icon}</span>
@@ -48,13 +59,15 @@ const Sidebar = () => {
         </ul>
       </nav>
 
-      {/* Pie del Sidebar (Usuario y Logout) */}
+      {/* Pie del Sidebar — Usuario dinámico */}
       <div className="sidebar-footer">
         <div className="user-profile">
-          <div className="avatar">MA</div>
+          <div className="avatar" title={nombreMostrar}>
+            {getInitials(nombreMostrar)}
+          </div>
           <div className="user-info">
-            <span className="user-name">Dr. María Admin</span>
-            <span className="user-role">Administrador</span>
+            <span className="user-name">{nombreMostrar}</span>
+            <span className="user-role">{rol}</span>
           </div>
         </div>
         <button onClick={handleLogout} className="logout-btn" title="Cerrar Sesión">

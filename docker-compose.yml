@@ -20,9 +20,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - PORT=8000
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://cesfam_user:cesfam_secure_password@database:5432/cesfam
+      - DATABASE_URL=postgresql://cesfam_user:cesfam_secure_password@database:5432/cesfam
     depends_on:
       - database
     restart: always

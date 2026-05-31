@@ -8,8 +8,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - PORT=8000
-      - NODE_ENV=production
       # Reemplazar con la URL real de conexión a la base de datos en producción
-      - DATABASE_URL=postgres://cesfam_user:cesfam_secure_password@db-host:5432/cesfam
+      - DATABASE_URL=postgresql://cesfam_user:cesfam_secure_password@db-host:5432/cesfam
     restart: always

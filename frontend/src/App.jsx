@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
@@ -6,17 +7,19 @@ import Agenda from './pages/Agenda';
 import Telemedicina from './pages/Telemedicina';
 import Logistica from './pages/Logistica';
 
-// Guardián de Rutas
+// Guardián de Rutas — usa el AuthContext en lugar de sessionStorage directamente
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
-  
-  // Si no está autenticado, lo enviamos al login
+  const { user } = useAuth();
+  // Fallback: también acepta sessionStorage para tolerar recarga antes del contexto
+  const isAuthenticated = !!user || sessionStorage.getItem('isAuthenticated') === 'true';
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return children;
 };
+
 
 function App() {
   return (

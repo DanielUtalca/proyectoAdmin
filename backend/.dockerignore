@@ -1,5 +1,9 @@
-node_modules
-npm-debug.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
 .env
 .git
 .gitignore
