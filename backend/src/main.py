@@ -19,7 +19,6 @@ from rutas import api_login
 # Forzar la creación de tablas
 Base.metadata.create_all(bind=engine)
 
-# Contexto de ciclo de vida para sembrar datos de prueba
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db = SessionLocal()
@@ -40,6 +39,16 @@ async def lifespan(app: FastAPI):
                     rut="9.876.543-2", password="password123", rol="Paciente",
                     nombre="Juan", apellido="Pérez", correo="juan@gmail.com",
                     telefono="+56911111111", direccion="Pasaje Los Pinos 789"
+                ),
+                Usuario(
+                    rut="14.444.555-6", password="password123", rol="Médico",
+                    nombre="Andrés", apellido="Castro", especialidad="Medicina General",
+                    correo="andres@cesfam.cl", telefono="+56922223333", direccion="Av. Central 789"
+                ),
+                Usuario(
+                    rut="15.555.666-7", password="password123", rol="Médico",
+                    nombre="Antonia", apellido="Vega", especialidad="Pediatría",
+                    correo="antonia@cesfam.cl", telefono="+56933334444", direccion="Paseo del Valle 456"
                 ),
             ]
             db.add_all(test_users)

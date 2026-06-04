@@ -92,6 +92,7 @@ class UserResponse(BaseModel):
     nombre: Optional[str] = None
     apellido: Optional[str] = None
     correo: Optional[str] = None
+    especialidad: Optional[str] = None
 
     class Config:
         from_attributes = True

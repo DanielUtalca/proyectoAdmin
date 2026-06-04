@@ -1,25 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
-import MainLayout from './layouts/MainLayout';
-import Dashboard from './pages/Dashboard';
-import Agenda from './pages/Agenda';
-import Telemedicina from './pages/Telemedicina';
-import Logistica from './pages/Logistica';
+import ProtectedRoute from './components/ProtectedRoute';
+import RoleRedirector from './components/RoleRedirector';
+import DashboardLayout from './layouts/DashboardLayout';
+import NoAutorizado from './pages/NoAutorizado';
+import ModulePlaceholder from './pages/ModulePlaceholder';
 
-// Guardián de Rutas — usa el AuthContext en lugar de sessionStorage directamente
-const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
-  // Fallback: también acepta sessionStorage para tolerar recarga antes del contexto
-  const isAuthenticated = !!user || sessionStorage.getItem('isAuthenticated') === 'true';
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
-
+// Importación de Dashboards por rol
+import PacienteView from './pages/PacienteView';
+import MedicoView from './pages/MedicoView';
+import TrabajadorView from './pages/TrabajadorView';
+import DirectorView from './pages/DirectorView';
 
 function App() {
   return (
@@ -28,24 +19,172 @@ function App() {
         {/* Ruta pública para el Login */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas principales con Layout Base (AHORA PROTEGIDAS) */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }>
-          {/* Si entra a la raíz y está logueado, va al dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+        {/* Ruta de Acceso Denegado / No Autorizado */}
+        <Route path="/no-autorizado" element={<NoAutorizado />} />
+
+        {/* Redirección automática al cargar la raíz o /dashboard */}
+        <Route path="/" element={<RoleRedirector />} />
+        <Route path="/dashboard" element={<RoleRedirector />} />
+
+        {/* ──────── RUTA DE PACIENTE ──────── */}
+        <Route 
+          path="/paciente" 
+          element={
+            <ProtectedRoute allowedRoles={['Paciente']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Index: Vista principal de bienvenida y resumen */}
+          <Route index element={<PacienteView />} />
           
-          {/* Páginas internas */}
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="agenda" element={<Agenda />} />
-          <Route path="telemedicina" element={<Telemedicina />} />
-          <Route path="logistica" element={<Logistica />} />
+          {/* Submódulos del paciente */}
+          <Route 
+            path="agenda" 
+            element={
+              <ModulePlaceholder 
+                title="Mi Agenda" 
+                iconName="CalendarDays" 
+                description="Aquí podrás revisar tus citas médicas vigentes, agendar nuevas horas clínicas y cancelar reservas del CESFAM." 
+              />
+            } 
+          />
+          <Route 
+            path="telemedicina" 
+            element={
+              <ModulePlaceholder 
+                title="Sala de Telemedicina" 
+                iconName="Video" 
+                description="Sala de espera virtual para tus teleconsultas con médicos del CESFAM. Conéctate a la videollamada programada." 
+              />
+            } 
+          />
+          <Route 
+            path="despachos" 
+            element={
+              <ModulePlaceholder 
+                title="Mis Despachos" 
+                iconName="MapPin" 
+                description="Realiza el seguimiento en tiempo real del despacho domiciliario de tus recetas y medicamentos prescritos." 
+              />
+            } 
+          />
         </Route>
 
-        {/* Captura rutas no encontradas y las envía al login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* ──────── RUTA DE MÉDICO ──────── */}
+        <Route 
+          path="/medico" 
+          element={
+            <ProtectedRoute allowedRoles={['Médico']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MedicoView />} />
+          
+          {/* Submódulos del médico */}
+          <Route 
+            path="agenda" 
+            element={
+              <ModulePlaceholder 
+                title="Agenda Diaria" 
+                iconName="CalendarDays" 
+                description="Control completo de tu agenda de pacientes citados. Administra admisiones, bloqueos y derivaciones médicas." 
+              />
+            } 
+          />
+          <Route 
+            path="telemedicina" 
+            element={
+              <ModulePlaceholder 
+                title="Atención Telemedicina" 
+                iconName="Video" 
+                description="Inicia videollamadas con pacientes agendados de forma remota. Consulta su ficha en paralelo." 
+              />
+            } 
+          />
+          <Route 
+            path="receta" 
+            element={
+              <ModulePlaceholder 
+                title="Emitir Receta" 
+                iconName="FileText" 
+                description="Formulario digital estructurado para prescribir medicamentos a pacientes y enviarlos a despacho logístico." 
+              />
+            } 
+          />
+        </Route>
+
+        {/* ──────── RUTA DE TRABAJADOR ──────── */}
+        <Route 
+          path="/trabajador" 
+          element={
+            <ProtectedRoute allowedRoles={['Trabajador']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<TrabajadorView />} />
+          
+          {/* Submódulos del trabajador */}
+          <Route 
+            path="horas" 
+            element={
+              <ModulePlaceholder 
+                title="Gestión de Horas" 
+                iconName="Clock" 
+                description="Crea, deshabilita o modifica bloques de horas disponibles en las agendas del personal clínico del CESFAM." 
+              />
+            } 
+          />
+          <Route 
+            path="logistica" 
+            element={
+              <ModulePlaceholder 
+                title="Rutas de Logística" 
+                iconName="Map" 
+                description="Asigna conductores, planifica las hojas de ruta y controla el estado de las entregas de medicamentos a domicilio." 
+              />
+            } 
+          />
+        </Route>
+
+        {/* ──────── RUTA DE DIRECTOR ──────── */}
+        <Route 
+          path="/director" 
+          element={
+            <ProtectedRoute allowedRoles={['Director']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DirectorView />} />
+          
+          {/* Submódulos del director */}
+          <Route 
+            path="general" 
+            element={
+              <ModulePlaceholder 
+                title="Dashboard General" 
+                iconName="LayoutDashboard" 
+                description="Indicadores clave de rendimiento (KPIs) del CESFAM: tasas de consulta, telemedicina, ausentismo e insumos." 
+              />
+            } 
+          />
+          <Route 
+            path="reportes" 
+            element={
+              <ModulePlaceholder 
+                title="Reportes Minsal" 
+                iconName="FileSpreadsheet" 
+                description="Generación y exportación de archivos planos y hojas de cálculo para el Registro Mensual de Atenciones (RMA) oficial del Minsal." 
+              />
+            } 
+          />
+        </Route>
+
+        {/* Captura de rutas inexistentes y reenvío a la raíz */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

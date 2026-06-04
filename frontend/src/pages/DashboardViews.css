@@ -1,0 +1,237 @@
+/* Estilos Compartidos de las Vistas del Dashboard */
+.view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: fadeInView 0.4s ease-out;
+}
+
+.view-header {
+  margin-bottom: 0.5rem;
+}
+
+.view-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.view-header p {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+/* Grid de Tarjetas de Resumen */
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.view-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.view-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.03);
+  border-color: rgba(26, 115, 232, 0.2);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.card-icon-container {
+  padding: 0.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Colores específicos de iconos por contexto */
+.bg-primary-light { background-color: rgba(26, 115, 232, 0.08); color: var(--primary); }
+.bg-success-light { background-color: rgba(15, 157, 88, 0.08); color: var(--success); }
+.bg-warning-light { background-color: rgba(244, 180, 0, 0.08); color: #c48c00; }
+.bg-danger-light { background-color: rgba(219, 68, 85, 0.08); color: var(--danger); }
+
+.card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0.25rem 0;
+}
+
+.card-detail {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.card-link-btn {
+  margin-top: auto;
+  align-self: flex-start;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+  background: transparent;
+  transition: gap 0.2s ease;
+}
+
+.card-link-btn:hover {
+  gap: 0.5rem;
+  color: var(--primary-hover);
+}
+
+/* Sección Inferior de Acceso Directo */
+.view-info-section {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .view-info-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quick-actions-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.75rem;
+}
+
+.quick-actions-panel h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1.25rem;
+}
+
+.actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-item:hover {
+  border-color: var(--primary);
+  background-color: rgba(26, 115, 232, 0.02);
+}
+
+.action-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.action-item-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.action-item-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.info-sidebar-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.75rem;
+}
+
+.info-sidebar-panel h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1.25rem;
+}
+
+.announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.announcement-item {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.announcement-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.announcement-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.announcement-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.announcement-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+@keyframes fadeInView {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -13,3 +13,4 @@ class Usuario(Base):
     correo = Column(String(150), nullable=True)
     telefono = Column(String(20), nullable=True)
     direccion = Column(String(255), nullable=True)
+    especialidad = Column(String(100), nullable=True)
