@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from database import engine, Base, get_db, SessionLocal
-from models import Usuario
+from models import Usuario, Cita
 
 # IMPORTANTE: Importamos nuestras nuevas rutas
-from rutas import api_login
+from rutas import api_login, api_citas
 
 # Forzar la creación de tablas
 Base.metadata.create_all(bind=engine)
@@ -54,6 +54,21 @@ async def lifespan(app: FastAPI):
             db.add_all(test_users)
             db.commit()
             print("[Startup] Base de datos sembrada exitosamente con usuarios de prueba.")
+            
+        if db.query(Cita).count() == 0:
+            # Sembramos solo UNA cita de ejemplo para que el médico tenga algo que ver en su panel
+            # El nuevo sistema crea citas dinámicamente desde el calendario del paciente.
+            test_citas = [
+                Cita(
+                    especialidad="Pediatría", nombre_medico="Dr. Antonia Vega",
+                    fecha_hora="2024-12-11 16:30", estado="RESERVADA",
+                    rut_paciente="9.876.543-2", nombre_paciente="Juan Pérez",
+                    motivo_consulta="Control sano niño"
+                )
+            ]
+            db.add_all(test_citas)
+            db.commit()
+            print("[Startup] Cita de prueba sembrada exitosamente.")
     except Exception as e:
         print(f"[Startup] Advertencia al sembrar base de datos: {e}")
     finally:
@@ -81,6 +96,7 @@ app.add_middleware(
 # CONECTAMOS LAS RUTAS EXTERNAS
 # ─────────────────────────────────────────────
 app.include_router(api_login.router, prefix="/api", tags=["Autenticación"])
+app.include_router(api_citas.router, prefix="/api", tags=["Citas"])
 
 # ─────────────────────────────────────────────
 # Endpoints Generales

@@ -14,3 +14,16 @@ class Usuario(Base):
     telefono = Column(String(20), nullable=True)
     direccion = Column(String(255), nullable=True)
     especialidad = Column(String(100), nullable=True)
+
+class Cita(Base):
+    __tablename__ = "citas"
+
+    id_cita = Column(Integer, primary_key=True, index=True)
+    rut_paciente = Column(String(50), nullable=True)
+    nombre_paciente = Column(String(150), nullable=True)
+    especialidad = Column(String(100), nullable=False)
+    nombre_medico = Column(String(150), nullable=False)
+    fecha_hora = Column(String(50), nullable=False) # Guardaremos ISO string o usaremos DateTime, usar String simplifica JSON por ahora
+    estado = Column(String(20), nullable=False, default='DISPONIBLE') # 'DISPONIBLE', 'RESERVADA', 'CANCELADA'
+    prioridad = Column(String(20), nullable=False, default='NORMAL') # 'NORMAL', 'ALTA'
+    motivo_consulta = Column(String(500), nullable=True)

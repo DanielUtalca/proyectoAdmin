@@ -67,12 +67,11 @@ services:
       - GENERIC_TIMEZONE=America/Santiago
       - TZ=America/Santiago
     volumes:
-      - ./n8n_data:/home/node/.local/share/n8n
+      - ./n8n_data:/home/node/.n8n
     depends_on:
       - database
       - ai
     restart: always
-
 volumes:
   pgdata_local:
   ollama_local:

@@ -96,3 +96,33 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─────────────────────────────────────────────
+# Esquemas de Citas
+# ─────────────────────────────────────────────
+
+class CitaResponse(BaseModel):
+    id_cita: int
+    rut_paciente: Optional[str] = None
+    nombre_paciente: Optional[str] = None
+    especialidad: str
+    nombre_medico: str
+    fecha_hora: str
+    estado: str
+    prioridad: str
+    motivo_consulta: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CrearCitaRequest(BaseModel):
+    """Schema para el agendamiento dinámico con el calendario interactivo."""
+    rut_paciente: str
+    nombre_paciente: str
+    especialidad: str
+    nombre_medico: str
+    fecha_hora: str        # Formato: "YYYY-MM-DD HH:MM"
+    motivo_consulta: str
+    prioridad: str = 'NORMAL'

@@ -12,6 +12,9 @@ import MedicoView from './pages/MedicoView';
 import TrabajadorView from './pages/TrabajadorView';
 import DirectorView from './pages/DirectorView';
 
+import MiAgendaPanel from './components/agenda/MiAgendaPanel';
+import AgendaMedicoPanel from './components/agenda/AgendaMedicoPanel';
+
 function App() {
   return (
     <BrowserRouter>
@@ -41,13 +44,7 @@ function App() {
           {/* Submódulos del paciente */}
           <Route 
             path="agenda" 
-            element={
-              <ModulePlaceholder 
-                title="Mi Agenda" 
-                iconName="CalendarDays" 
-                description="Aquí podrás revisar tus citas médicas vigentes, agendar nuevas horas clínicas y cancelar reservas del CESFAM." 
-              />
-            } 
+            element={<MiAgendaPanel />} 
           />
           <Route 
             path="telemedicina" 
@@ -85,13 +82,7 @@ function App() {
           {/* Submódulos del médico */}
           <Route 
             path="agenda" 
-            element={
-              <ModulePlaceholder 
-                title="Agenda Diaria" 
-                iconName="CalendarDays" 
-                description="Control completo de tu agenda de pacientes citados. Administra admisiones, bloqueos y derivaciones médicas." 
-              />
-            } 
+            element={<AgendaMedicoPanel />} 
           />
           <Route 
             path="telemedicina" 
