@@ -13,6 +13,7 @@ import {
   User
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ChatbotFlotante from '../components/ChatbotFlotante';
 import './DashboardLayout.css';
 
 // Mapeo dinámico de iconos de Lucide
@@ -171,6 +172,9 @@ const DashboardLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Chatbot flotante — visible solo para pacientes en todas sus sub-rutas */}
+      {userRol === 'Paciente' && <ChatbotFlotante />}
     </div>
   );
 };

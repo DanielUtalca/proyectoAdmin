@@ -48,6 +48,32 @@ services:
       - ollama_local:/root/.ollama
     restart: always
 
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: cesfam-n8n-local
+    ports:
+      - "5678:5678"
+    environment:
+      # Persistencia en PostgreSQL (mismas credenciales del proyecto)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=cesfam-database-local
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=cesfam
+      - DB_POSTGRESDB_USER=cesfam_user
+      - DB_POSTGRESDB_PASSWORD=cesfam_secure_password
+      # URL base para webhooks
+      - WEBHOOK_URL=http://localhost:5678/
+      # Zona horaria
+      - GENERIC_TIMEZONE=America/Santiago
+      - TZ=America/Santiago
+    volumes:
+      - ./n8n_data:/home/node/.local/share/n8n
+    depends_on:
+      - database
+      - ai
+    restart: always
+
 volumes:
   pgdata_local:
   ollama_local:
+  # n8n_data se gestiona como bind mount (./n8n_data) — no necesita declararse aquí
