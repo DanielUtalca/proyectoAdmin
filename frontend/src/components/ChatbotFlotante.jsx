@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './ChatbotFlotante.css';
 
-const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook-test/chat';
+const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/chat';
 
 // Mensaje inicial del asistente al abrir el chat
 const MENSAJE_BIENVENIDA = {
@@ -69,7 +69,10 @@ const ChatbotFlotante = () => {
         },
         body: JSON.stringify({
           chatInput: texto,
-          rut: rut,
+          paciente_rut: rut,
+          paciente_nombre: user
+            ? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim()
+            : 'desconocido',
         }),
       });
 
