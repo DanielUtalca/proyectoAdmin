@@ -112,6 +112,8 @@ class CitaResponse(BaseModel):
     estado: str
     prioridad: str
     motivo_consulta: Optional[str] = None
+    tipo_cita: Optional[str] = 'Presencial'
+    enlace_telemedicina: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -126,3 +128,28 @@ class CrearCitaRequest(BaseModel):
     fecha_hora: str        # Formato: "YYYY-MM-DD HH:MM"
     motivo_consulta: str
     prioridad: str = 'NORMAL'
+    tipo_cita: Optional[str] = 'Presencial'
+
+# ─────────────────────────────────────────────
+# Esquemas de Logística
+# ─────────────────────────────────────────────
+
+class CrearLogisticaRequest(BaseModel):
+    rut_paciente: str
+    nombre_paciente: Optional[str] = None
+    tipo: str          # 'Despacho', 'Visita'
+    direccion: str
+    detalle: Optional[str] = None
+
+class LogisticaResponse(BaseModel):
+    id: int
+    rut_paciente: str
+    nombre_paciente: Optional[str] = None
+    tipo: str
+    direccion: str
+    detalle: Optional[str] = None
+    estado: str
+
+    class Config:
+        from_attributes = True
+

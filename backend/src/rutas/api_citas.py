@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cita, Usuario
-from schemas import CitaResponse, CrearCitaRequest
+from models import Cita, Usuario, Logistica
+from schemas import CitaResponse, CrearCitaRequest, CrearLogisticaRequest, LogisticaResponse
 
 router = APIRouter()
 
@@ -78,7 +78,8 @@ def crear_cita(req: CrearCitaRequest, db: Session = Depends(get_db)):
         fecha_hora=req.fecha_hora,
         estado="RESERVADA",
         prioridad=req.prioridad,
-        motivo_consulta=req.motivo_consulta
+        motivo_consulta=req.motivo_consulta,
+        tipo_cita=req.tipo_cita or 'Presencial'
     )
     db.add(nueva_cita)
     db.commit()
@@ -127,3 +128,136 @@ def atender_cita(id_cita: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(cita)
     return cita
+
+# ─────────────────────────────────────────────
+# Endpoints de Logística
+# ─────────────────────────────────────────────
+
+@router.post("/logistica", response_model=LogisticaResponse)
+def crear_logistica(req: CrearLogisticaRequest, db: Session = Depends(get_db)):
+    """Crea una nueva orden de logística (despacho de medicamentos o visita domiciliaria)"""
+    nueva_orden = Logistica(
+        rut_paciente=req.rut_paciente,
+        nombre_paciente=req.nombre_paciente,
+        tipo=req.tipo,
+        direccion=req.direccion,
+        detalle=req.detalle,
+        estado="PENDIENTE"
+    )
+    db.add(nueva_orden)
+    db.commit()
+    db.refresh(nueva_orden)
+    return nueva_orden
+
+@router.get("/logistica", response_model=list[LogisticaResponse])
+def get_logistica(db: Session = Depends(get_db)):
+    """Retorna todas las órdenes de logística registradas"""
+    return db.query(Logistica).order_by(Logistica.id.desc()).all()
+
+@router.put("/logistica/estado/{id}", response_model=LogisticaResponse)
+def actualizar_estado_logistica(id: int, estado: str = Query(..., description="PENDIENTE, EN_CAMINO o COMPLETADO"), db: Session = Depends(get_db)):
+    """Actualiza el estado de una orden de logística"""
+    orden = db.query(Logistica).filter(Logistica.id == id).first()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden de logística no encontrada")
+    
+    estado_upper = estado.upper()
+    if estado_upper not in ["PENDIENTE", "EN_CAMINO", "COMPLETADO"]:
+        raise HTTPException(status_code=400, detail="Estado inválido")
+        
+    orden.estado = estado_upper
+    db.commit()
+    db.refresh(orden)
+    return orden
+
+
+# ─────────────────────────────────────────────
+# Endpoints de Estadísticas para los Dashboards
+# ─────────────────────────────────────────────
+
+@router.get("/stats/medico/{nombre_medico}")
+def get_stats_medico(nombre_medico: str, db: Session = Depends(get_db)):
+    """Retorna KPIs reales para el dashboard del médico."""
+    from datetime import date
+    hoy = date.today().isoformat()
+
+    total_hoy = db.query(Cita).filter(
+        Cita.nombre_medico == nombre_medico,
+        Cita.fecha_hora.startswith(hoy),
+        Cita.estado.in_(["RESERVADA", "ATENDIDA"])
+    ).count()
+
+    atendidas_hoy = db.query(Cita).filter(
+        Cita.nombre_medico == nombre_medico,
+        Cita.fecha_hora.startswith(hoy),
+        Cita.estado == "ATENDIDA"
+    ).count()
+
+    teleconsultas_pendientes = db.query(Cita).filter(
+        Cita.nombre_medico == nombre_medico,
+        Cita.tipo_cita == "Telemedicina",
+        Cita.estado == "RESERVADA"
+    ).count()
+
+    proxima_teleconsulta = db.query(Cita).filter(
+        Cita.nombre_medico == nombre_medico,
+        Cita.tipo_cita == "Telemedicina",
+        Cita.estado == "RESERVADA"
+    ).order_by(Cita.fecha_hora).first()
+
+    return {
+        "total_pacientes_hoy": total_hoy,
+        "atendidas_hoy": atendidas_hoy,
+        "teleconsultas_pendientes": teleconsultas_pendientes,
+        "proxima_teleconsulta": {
+            "nombre_paciente": proxima_teleconsulta.nombre_paciente,
+            "fecha_hora": proxima_teleconsulta.fecha_hora
+        } if proxima_teleconsulta else None
+    }
+
+
+@router.get("/stats/paciente/{rut}")
+def get_stats_paciente(rut: str, db: Session = Depends(get_db)):
+    """Retorna KPIs reales para el dashboard del paciente."""
+    from datetime import datetime
+
+    ahora_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    proxima_cita = db.query(Cita).filter(
+        Cita.rut_paciente == rut,
+        Cita.estado == "RESERVADA",
+        Cita.fecha_hora >= ahora_str
+    ).order_by(Cita.fecha_hora).first()
+
+    citas_virtuales_pendientes = db.query(Cita).filter(
+        Cita.rut_paciente == rut,
+        Cita.tipo_cita == "Telemedicina",
+        Cita.estado == "RESERVADA"
+    ).count()
+
+    despachos_pendientes = db.query(Logistica).filter(
+        Logistica.rut_paciente == rut,
+        Logistica.estado == "PENDIENTE"
+    ).count()
+
+    def formatear_fecha(fecha_hora_str):
+        """Convierte 'YYYY-MM-DD HH:MM' a un string legible."""
+        try:
+            dt = datetime.strptime(fecha_hora_str, "%Y-%m-%d %H:%M")
+            dias = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"]
+            meses = ["enero","febrero","marzo","abril","mayo","junio",
+                     "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+            return f"{dias[dt.weekday()]} {dt.day} de {meses[dt.month-1]} a las {dt.strftime('%H:%M')}"
+        except:
+            return fecha_hora_str
+
+    return {
+        "proxima_cita": {
+            "nombre_medico": proxima_cita.nombre_medico,
+            "especialidad": proxima_cita.especialidad,
+            "fecha_hora": proxima_cita.fecha_hora,
+            "fecha_legible": formatear_fecha(proxima_cita.fecha_hora),
+            "tipo_cita": proxima_cita.tipo_cita
+        } if proxima_cita else None,
+        "citas_virtuales_pendientes": citas_virtuales_pendientes,
+        "despachos_pendientes": despachos_pendientes
+    }

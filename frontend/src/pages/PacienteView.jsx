@@ -1,25 +1,38 @@
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Video, MapPin, ArrowRight } from 'lucide-react';
+import { CalendarDays, Video, MapPin, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useState, useEffect } from 'react';
 import './DashboardViews.css';
+
+const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Vista Base / Dashboard del Paciente.
- * 
- * Ítems de su Sidebar:
- * - Mi Agenda (/paciente/agenda)
- * - Sala de Telemedicina (/paciente/telemedicina)
- * - Mis Despachos (/paciente/despachos)
+ * KPIs conectados en tiempo real con la API.
  */
 const PacienteView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const nombre = user?.nombreMostrar || sessionStorage.getItem('nombreMostrar') || 'Paciente';
+  const rut = user?.rut || sessionStorage.getItem('userRut') || '';
 
-  // Ítems del menú definidos para referencia del rol:
-  // - Mi Agenda (/paciente/agenda)
-  // - Sala de Telemedicina (/paciente/telemedicina)
-  // - Mis Despachos (/paciente/despachos)
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (!rut) return;
+    setLoadingStats(true);
+    fetch(`${API_URL}/api/stats/paciente/${encodeURIComponent(rut)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setStats(data); setLoadingStats(false); })
+      .catch(() => setLoadingStats(false));
+  }, [rut]);
+
+  const StatValue = ({ children }) => (
+    loadingStats
+      ? <Loader2 size={18} className="spin" style={{ color: '#94a3b8' }} />
+      : <>{children}</>
+  );
 
   return (
     <div className="view-container">
@@ -32,13 +45,25 @@ const PacienteView = () => {
       <div className="view-grid">
         <div className="view-card">
           <div className="card-top">
-            <span className="card-title">Próxima Cita Medica</span>
+            <span className="card-title">Próxima Cita Médica</span>
             <div className="card-icon-container bg-primary-light">
               <CalendarDays size={20} />
             </div>
           </div>
-          <div className="card-value" style={{ fontSize: '1.25rem' }}>Mañana a las 10:30 AM</div>
-          <div className="card-detail">Dr. Alejandro Muñoz — Medicina General</div>
+          <div className="card-value" style={{ fontSize: '1.1rem' }}>
+            <StatValue>
+              {stats?.proxima_cita
+                ? stats.proxima_cita.fecha_legible || stats.proxima_cita.fecha_hora
+                : 'Sin citas próximas'}
+            </StatValue>
+          </div>
+          <div className="card-detail">
+            <StatValue>
+              {stats?.proxima_cita
+                ? `${stats.proxima_cita.nombre_medico} — ${stats.proxima_cita.especialidad}`
+                : 'Agenda una hora con tu médico'}
+            </StatValue>
+          </div>
           <button onClick={() => navigate('/paciente/agenda')} className="card-link-btn">
             Ver mi agenda <ArrowRight size={14} />
           </button>
@@ -51,8 +76,22 @@ const PacienteView = () => {
               <Video size={20} />
             </div>
           </div>
-          <div className="card-value" style={{ fontSize: '1.25rem' }}>Sin llamadas activas</div>
-          <div className="card-detail">Próxima teleconsulta programada para el 12 de Junio</div>
+          <div className="card-value" style={{ fontSize: '1.1rem' }}>
+            <StatValue>
+              {stats?.citas_virtuales_pendientes > 0
+                ? `${stats.citas_virtuales_pendientes} Consulta${stats.citas_virtuales_pendientes !== 1 ? 's' : ''} Virtual${stats.citas_virtuales_pendientes !== 1 ? 'es' : ''}`
+                : 'Sin llamadas activas'}
+            </StatValue>
+          </div>
+          <div className="card-detail">
+            <StatValue>
+              {stats?.proxima_cita?.tipo_cita === 'Telemedicina'
+                ? `Teleconsulta: ${stats.proxima_cita.fecha_legible || stats.proxima_cita.fecha_hora}`
+                : stats?.citas_virtuales_pendientes > 0
+                  ? 'Tienes teleconsultas virtuales agendadas'
+                  : 'Al agendar, elige la modalidad virtual'}
+            </StatValue>
+          </div>
           <button onClick={() => navigate('/paciente/telemedicina')} className="card-link-btn">
             Entrar a la sala <ArrowRight size={14} />
           </button>
@@ -65,8 +104,20 @@ const PacienteView = () => {
               <MapPin size={20} />
             </div>
           </div>
-          <div className="card-value" style={{ fontSize: '1.25rem' }}>1 Receta Pendiente</div>
-          <div className="card-detail">Despacho programado a tu domicilio registrado</div>
+          <div className="card-value" style={{ fontSize: '1.1rem' }}>
+            <StatValue>
+              {stats?.despachos_pendientes > 0
+                ? `${stats.despachos_pendientes} Receta${stats.despachos_pendientes !== 1 ? 's' : ''} Pendiente${stats.despachos_pendientes !== 1 ? 's' : ''}`
+                : 'Sin despachos pendientes'}
+            </StatValue>
+          </div>
+          <div className="card-detail">
+            <StatValue>
+              {stats?.despachos_pendientes > 0
+                ? 'Despacho programado a tu domicilio registrado'
+                : 'No tienes recetas en camino'}
+            </StatValue>
+          </div>
           <button onClick={() => navigate('/paciente/despachos')} className="card-link-btn">
             Seguimiento de despacho <ArrowRight size={14} />
           </button>
@@ -93,8 +144,19 @@ const PacienteView = () => {
               <div className="action-item-left">
                 <Video size={20} color="var(--success)" />
                 <div>
-                  <div className="action-item-title">Prueba de Conexión de Telemedicina</div>
-                  <div className="action-item-desc">Verifica tu cámara y micrófono antes de tu consulta</div>
+                  <div className="action-item-title">Sala de Telemedicina</div>
+                  <div className="action-item-desc">Accede a tus consultas virtuales activas</div>
+                </div>
+              </div>
+              <ArrowRight size={16} color="var(--text-muted)" />
+            </div>
+
+            <div className="action-item" onClick={() => navigate('/paciente/despachos')}>
+              <div className="action-item-left">
+                <MapPin size={20} color="var(--warning)" />
+                <div>
+                  <div className="action-item-title">Seguimiento de Despacho</div>
+                  <div className="action-item-desc">Rastrea el estado de tus medicamentos en camino</div>
                 </div>
               </div>
               <ArrowRight size={16} color="var(--text-muted)" />
@@ -110,7 +172,7 @@ const PacienteView = () => {
               <div className="announcement-title">Vacunación Influenza 2026</div>
               <p className="announcement-desc">Recuerda vacunarte de Lunes a Viernes de 8:30 a 16:30 hrs en el vacunatorio central.</p>
             </div>
-            
+
             <div className="announcement-item">
               <span className="announcement-date">Aviso General</span>
               <div className="announcement-title">Nuevos horarios de Farmacia</div>

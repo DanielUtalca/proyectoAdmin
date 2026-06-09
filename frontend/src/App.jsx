@@ -14,6 +14,8 @@ import DirectorView from './pages/DirectorView';
 
 import MiAgendaPanel from './components/agenda/MiAgendaPanel';
 import AgendaMedicoPanel from './components/agenda/AgendaMedicoPanel';
+import TelemedicinaMedicoPanel from './components/agenda/TelemedicinaMedicoPanel';
+import TelemedicinaPacientePanel from './components/agenda/TelemedicinaPacientePanel';
 
 function App() {
   return (
@@ -48,13 +50,7 @@ function App() {
           />
           <Route 
             path="telemedicina" 
-            element={
-              <ModulePlaceholder 
-                title="Sala de Telemedicina" 
-                iconName="Video" 
-                description="Sala de espera virtual para tus teleconsultas con médicos del CESFAM. Conéctate a la videollamada programada." 
-              />
-            } 
+            element={<TelemedicinaPacientePanel />} 
           />
           <Route 
             path="despachos" 
@@ -86,13 +82,7 @@ function App() {
           />
           <Route 
             path="telemedicina" 
-            element={
-              <ModulePlaceholder 
-                title="Atención Telemedicina" 
-                iconName="Video" 
-                description="Inicia videollamadas con pacientes agendados de forma remota. Consulta su ficha en paralelo." 
-              />
-            } 
+            element={<TelemedicinaMedicoPanel />} 
           />
           <Route 
             path="receta" 

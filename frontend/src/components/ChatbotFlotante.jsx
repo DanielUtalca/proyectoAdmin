@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './ChatbotFlotante.css';
 
-const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/chat';
+const API_CHAT_URL = '/api/chat';
 
 // Mensaje inicial del asistente al abrir el chat
 const MENSAJE_BIENVENIDA = {
@@ -61,7 +61,7 @@ const ChatbotFlotante = () => {
     setCargando(true);
 
     try {
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      const response = await fetch(API_CHAT_URL, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -73,6 +73,10 @@ const ChatbotFlotante = () => {
           paciente_nombre: user
             ? `${user.nombre ?? ''} ${user.apellido ?? ''}`.trim()
             : 'desconocido',
+          history: mensajes.slice(-12).map(m => ({
+            role: m.role,
+            text: m.text
+          })),
         }),
       });
 
@@ -103,12 +107,12 @@ const ChatbotFlotante = () => {
       const msgError = {
         id: Date.now() + 1,
         role: 'assistant',
-        text: '⚠️ No pude conectarme con el asistente en este momento. Verifica que el servicio n8n esté activo.',
+        text: '⚠️ No pude conectarme con el asistente en este momento. Por favor intenta de nuevo.',
         timestamp: new Date(),
         esError: true,
       };
       setMensajes((prev) => [...prev, msgError]);
-      console.error('[ChatbotFlotante] Error al contactar n8n:', err);
+      console.error('[ChatbotFlotante] Error al contactar el asistente:', err);
     } finally {
       setCargando(false);
     }

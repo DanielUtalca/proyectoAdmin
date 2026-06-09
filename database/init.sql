@@ -1,23 +1,16 @@
--- Crear tabla de Pacientes
-CREATE TABLE IF NOT EXISTS pacientes (
+-- Crear tabla de Usuarios
+CREATE TABLE IF NOT EXISTS usuarios (
     id SERIAL PRIMARY KEY,
-    rut VARCHAR(12) UNIQUE NOT NULL,
-    nombres VARCHAR(100) NOT NULL,
-    apellidos VARCHAR(100) NOT NULL,
-    fecha_nacimiento DATE NOT NULL,
-    prevision VARCHAR(50) NOT NULL
+    rut VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    rol VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100),
+    apellido VARCHAR(100),
+    correo VARCHAR(150),
+    telefono VARCHAR(20),
+    direccion VARCHAR(255),
+    especialidad VARCHAR(100)
 );
-
--- Insertar un paciente de prueba
-INSERT INTO pacientes (rut, nombres, apellidos, fecha_nacimiento, prevision)
-VALUES (
-    '12.345.678-9',
-    'Juan Carlos',
-    'Pérez Muñoz',
-    '1985-10-15',
-    'FONASA A'
-)
-ON CONFLICT (rut) DO NOTHING;
 
 -- Crear tabla de Citas
 CREATE TABLE IF NOT EXISTS citas (
@@ -29,5 +22,18 @@ CREATE TABLE IF NOT EXISTS citas (
     fecha_hora VARCHAR(50) NOT NULL,
     estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
     prioridad VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
-    motivo_consulta TEXT
+    motivo_consulta TEXT,
+    tipo_cita VARCHAR(50) NOT NULL DEFAULT 'Presencial',
+    enlace_telemedicina VARCHAR(255)
+);
+
+-- Crear tabla de Logística
+CREATE TABLE IF NOT EXISTS logistica (
+    id SERIAL PRIMARY KEY,
+    rut_paciente VARCHAR(50) NOT NULL,
+    nombre_paciente VARCHAR(150),
+    tipo VARCHAR(50) NOT NULL,
+    direccion VARCHAR(255) NOT NULL,
+    detalle VARCHAR(255),
+    estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE'
 );

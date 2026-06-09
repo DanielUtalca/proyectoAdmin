@@ -27,3 +27,16 @@ class Cita(Base):
     estado = Column(String(20), nullable=False, default='DISPONIBLE') # 'DISPONIBLE', 'RESERVADA', 'CANCELADA'
     prioridad = Column(String(20), nullable=False, default='NORMAL') # 'NORMAL', 'ALTA'
     motivo_consulta = Column(String(500), nullable=True)
+    tipo_cita = Column(String(50), nullable=False, default='Presencial') # 'Presencial', 'Telemedicina'
+    enlace_telemedicina = Column(String(255), nullable=True)
+
+class Logistica(Base):
+    __tablename__ = "logistica"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rut_paciente = Column(String(50), index=True, nullable=False)
+    nombre_paciente = Column(String(150), nullable=True)
+    tipo = Column(String(50), nullable=False)          # 'Despacho', 'Visita'
+    direccion = Column(String(255), nullable=False)
+    detalle = Column(String(255), nullable=True)        # Ej. "Medicamentos A, B" o motivo de visita
+    estado = Column(String(50), nullable=False, default='PENDIENTE')  # 'PENDIENTE', 'EN_CAMINO', 'COMPLETADO'

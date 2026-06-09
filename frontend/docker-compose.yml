@@ -1,9 +1,0 @@
-services:
-  cesfam-frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: cesfam-frontend
-    ports:
-      - "80:80"
-    restart: always

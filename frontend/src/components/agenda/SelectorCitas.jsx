@@ -47,6 +47,7 @@ const SelectorCitas = ({ onCitaAgendada }) => {
   const [slotSel, setSlotSel] = useState(null);
   const [motivo, setMotivo] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [tipoCita, setTipoCita] = useState('Presencial');
 
   // ── Cargar médicos al montar ─────────────────
   useEffect(() => {
@@ -139,12 +140,13 @@ const SelectorCitas = ({ onCitaAgendada }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut_paciente: user.rut,
-          nombre_paciente: `${user.nombre} ${user.apellido}`.trim(),
+          nombre_paciente: user.nombreMostrar || 'Paciente',
           especialidad,
           nombre_medico: medicoSel,
           fecha_hora,
           motivo_consulta: motivo,
-          prioridad: 'NORMAL'
+          prioridad: 'NORMAL',
+          tipo_cita: tipoCita
         })
       });
 
@@ -325,7 +327,35 @@ const SelectorCitas = ({ onCitaAgendada }) => {
             </div>
 
             <form onSubmit={handleAgendar}>
-              <div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#374151' }}>
+                  Modalidad de atención:
+                </label>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="tipoCita"
+                      value="Presencial"
+                      checked={tipoCita === 'Presencial'}
+                      onChange={() => setTipoCita('Presencial')}
+                    />
+                    Presencial
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="tipoCita"
+                      value="Telemedicina"
+                      checked={tipoCita === 'Telemedicina'}
+                      onChange={() => setTipoCita('Telemedicina')}
+                    />
+                    Telemedicina (Virtual)
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#374151' }}>
                   Motivo de la consulta:
                 </label>
