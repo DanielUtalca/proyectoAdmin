@@ -98,7 +98,7 @@ const DashboardLayout = () => {
           </div>
           <div className="sidebar-brand-text">
             <span className="brand-title">CESFAM</span>
-            <span className="brand-subtitle">Purranque Admin</span>
+            <span className="brand-subtitle">Purranque</span>
           </div>
         </div>
 
