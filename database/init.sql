@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS citas (
     prioridad VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
     motivo_consulta TEXT,
     tipo_cita VARCHAR(50) NOT NULL DEFAULT 'Presencial',
-    enlace_telemedicina VARCHAR(255)
+    enlace_telemedicina VARCHAR(255),
+    notas_clinicas TEXT
 );
 
 -- Crear tabla de Logística

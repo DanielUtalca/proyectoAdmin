@@ -29,6 +29,7 @@ class Cita(Base):
     motivo_consulta = Column(String(500), nullable=True)
     tipo_cita = Column(String(50), nullable=False, default='Presencial') # 'Presencial', 'Telemedicina'
     enlace_telemedicina = Column(String(255), nullable=True)
+    notas_clinicas = Column(String, nullable=True)
 
 class Logistica(Base):
     __tablename__ = "logistica"

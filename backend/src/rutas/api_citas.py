@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Cita, Usuario, Logistica
-from schemas import CitaResponse, CrearCitaRequest, CrearLogisticaRequest, LogisticaResponse
+from schemas import CitaResponse, CrearCitaRequest, CrearLogisticaRequest, LogisticaResponse, AtenderCitaRequest
 
 router = APIRouter()
 
@@ -84,6 +85,12 @@ def crear_cita(req: CrearCitaRequest, db: Session = Depends(get_db)):
     db.add(nueva_cita)
     db.commit()
     db.refresh(nueva_cita)
+
+    if nueva_cita.tipo_cita == 'Telemedicina':
+        nueva_cita.enlace_telemedicina = f"https://meet.jit.si/cesfam-telemedicina-{nueva_cita.rut_paciente}-{nueva_cita.id_cita}"
+        db.commit()
+        db.refresh(nueva_cita)
+
     return nueva_cita
 
 @router.put("/citas/cancelar/{id_cita}", response_model=CitaResponse)
@@ -116,7 +123,7 @@ def get_agenda_medico(nombre_medico: str, db: Session = Depends(get_db)):
     return citas
 
 @router.put("/citas/atender/{id_cita}", response_model=CitaResponse)
-def atender_cita(id_cita: int, db: Session = Depends(get_db)):
+def atender_cita(id_cita: int, req: Optional[AtenderCitaRequest] = Body(None), db: Session = Depends(get_db)):
     """Marca una cita como ATENDIDA. Solo aplica a citas en estado RESERVADA."""
     cita = db.query(Cita).filter(Cita.id_cita == id_cita).first()
     if not cita:
@@ -125,6 +132,8 @@ def atender_cita(id_cita: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Solo se pueden atender citas en estado RESERVADA")
 
     cita.estado = "ATENDIDA"
+    if req and req.notas_clinicas is not None:
+        cita.notas_clinicas = req.notas_clinicas
     db.commit()
     db.refresh(cita)
     return cita

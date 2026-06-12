@@ -11,8 +11,16 @@ const TelemedicinaPacientePanel = () => {
   const [citasVirtuales, setCitasVirtuales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [ahora, setAhora] = useState(new Date());
 
   const rut = user?.rut || sessionStorage.getItem('userRut') || '';
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAhora(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (rut) {
@@ -39,10 +47,12 @@ const TelemedicinaPacientePanel = () => {
   };
 
   const handleEntrarVideollamada = (cita) => {
-    // Sanitizamos el RUT para coincidir exactamente con el nombre de la sala que abre el médico
-    const cleanRut = (cita.rut_paciente || rut).replace(/[^a-zA-Z0-9-_]/g, '');
-    const jitsiUrl = `https://meet.jit.si/cesfam-telemedicina-${cleanRut}`;
-    window.open(jitsiUrl, '_blank');
+    const jitsiUrl = cita.enlace_telemedicina || '';
+    if (jitsiUrl) {
+      window.open(jitsiUrl, '_blank');
+    } else {
+      alert('No hay un enlace de telemedicina registrado para esta cita.');
+    }
   };
 
   if (loading) return <div className="loading-state">Cargando sala de telemedicina...</div>;
@@ -99,15 +109,27 @@ const TelemedicinaPacientePanel = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {citasVirtuales.map(cita => {
+            const citaFecha = (() => {
+              try {
+                return new Date(cita.fecha_hora.replace(' ', 'T') + ':00');
+              } catch {
+                return null;
+              }
+            })();
+
             const fechaDisplay = (() => {
               try {
-                return new Date(cita.fecha_hora.replace(' ', 'T') + ':00')
-                  .toLocaleString('es-CL', {
-                    weekday: 'long', day: '2-digit',
-                    month: 'long', hour: '2-digit', minute: '2-digit'
-                  });
+                return citaFecha.toLocaleString('es-CL', {
+                  weekday: 'long', day: '2-digit',
+                  month: 'long', hour: '2-digit', minute: '2-digit'
+                });
               } catch { return cita.fecha_hora; }
             })();
+
+            // Regla de negocio: Deshabilitado si faltan más de 15 minutos
+            const diffMs = citaFecha ? citaFecha.getTime() - ahora.getTime() : 0;
+            const diffMinutes = diffMs / (1000 * 60);
+            const deshabilitado = diffMinutes > 15;
 
             return (
               <div
@@ -168,25 +190,47 @@ const TelemedicinaPacientePanel = () => {
                   gap: '16px'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="chatbot-estado-dot" style={{ backgroundColor: '#22c55e', width: '10px', height: '10px' }} />
-                    <span style={{ fontSize: '0.88rem', color: '#15803d', fontWeight: 600, animation: 'pulse 2s infinite' }}>
-                      Sala de espera activa
+                    <span 
+                      className={deshabilitado ? '' : 'chatbot-estado-dot'} 
+                      style={{ 
+                        backgroundColor: deshabilitado ? '#94a3b8' : '#22c55e', 
+                        width: '10px', 
+                        height: '10px',
+                        borderRadius: '50%'
+                      }} 
+                    />
+                    <span style={{ 
+                      fontSize: '0.88rem', 
+                      color: deshabilitado ? '#64748b' : '#15803d', 
+                      fontWeight: 600, 
+                      animation: deshabilitado ? 'none' : 'pulse 2s infinite' 
+                    }}>
+                      {deshabilitado ? 'Espera programada' : 'Sala de espera activa'}
                     </span>
                   </div>
 
                   <button
                     className="btn-primary"
                     onClick={() => handleEntrarVideollamada(cita)}
+                    disabled={deshabilitado}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
                       padding: '12px 28px',
                       fontSize: '0.95rem',
-                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                      boxShadow: deshabilitado ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.2)',
+                      backgroundColor: deshabilitado ? '#94a3b8' : '#2563eb',
+                      cursor: deshabilitado ? 'not-allowed' : 'pointer',
+                      opacity: deshabilitado ? 0.7 : 1,
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontWeight: 600,
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    Ingresar a la Videollamada <ExternalLink size={16} />
+                    {deshabilitado ? 'Disponible 15 min antes' : <>Ingresar a la Videollamada <ExternalLink size={16} /></>}
                   </button>
                 </div>
               </div>

@@ -114,9 +114,14 @@ class CitaResponse(BaseModel):
     motivo_consulta: Optional[str] = None
     tipo_cita: Optional[str] = 'Presencial'
     enlace_telemedicina: Optional[str] = None
+    notas_clinicas: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class AtenderCitaRequest(BaseModel):
+    notas_clinicas: Optional[str] = None
 
 
 class CrearCitaRequest(BaseModel):

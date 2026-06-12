@@ -24,6 +24,8 @@ const TelemedicinaMedicoPanel = () => {
   const [direccion, setDireccion] = useState('');
   const [detalle, setDetalle] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState('TODAS');
+  const [notasClinicas, setNotasClinicas] = useState('');
 
   const nombreMedico = user?.nombreMostrar || '';
 
@@ -51,10 +53,12 @@ const TelemedicinaMedicoPanel = () => {
   };
 
   const handleIniciarVideollamada = (cita) => {
-    // Sanitizamos el RUT del paciente para formar un nombre de sala de Jitsi válido (solo alfanuméricos, guión y guión bajo)
-    const cleanRut = (cita.rut_paciente || 'paciente').replace(/[^a-zA-Z0-9-_]/g, '');
-    const jitsiUrl = `https://meet.jit.si/cesfam-telemedicina-${cleanRut}`;
-    window.open(jitsiUrl, '_blank');
+    const jitsiUrl = cita.enlace_telemedicina || '';
+    if (jitsiUrl) {
+      window.open(jitsiUrl, '_blank');
+    } else {
+      alert('No hay un enlace de telemedicina registrado para esta cita.');
+    }
   };
 
   const abrirModalFinalizar = (cita) => {
@@ -63,6 +67,7 @@ const TelemedicinaMedicoPanel = () => {
     setLogisticaTipo('Despacho');
     setDireccion('');
     setDetalle('');
+    setNotasClinicas('');
     setModalAbierto(true);
   };
 
@@ -74,6 +79,11 @@ const TelemedicinaMedicoPanel = () => {
   const handleFinalizarAtencion = async (e) => {
     e.preventDefault();
     if (!citaSeleccionada) return;
+
+    if (!notasClinicas.trim()) {
+      alert('Por favor, ingresa las Notas Clínicas / Diagnóstico.');
+      return;
+    }
 
     try {
       setGuardando(true);
@@ -105,7 +115,13 @@ const TelemedicinaMedicoPanel = () => {
 
       // Marcar la cita como Atendida/Completada
       const atenderResp = await fetch(`${API_URL}/api/citas/atender/${citaSeleccionada.id_cita}`, {
-        method: 'PUT'
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notas_clinicas: notasClinicas.trim()
+        })
       });
 
       if (!atenderResp.ok) throw new Error('Error al registrar la finalización de la cita');
@@ -121,6 +137,16 @@ const TelemedicinaMedicoPanel = () => {
 
   const pendientes = citas.filter(c => c.estado === 'RESERVADA').length;
   const completadas = citas.filter(c => c.estado === 'ATENDIDA').length;
+
+  const citasFiltradas = citas.filter(cita => {
+    if (filtroTipo === 'PRESENCIAL') {
+      return cita.tipo_cita !== 'Telemedicina';
+    }
+    if (filtroTipo === 'TELEMEDICINA') {
+      return cita.tipo_cita === 'Telemedicina';
+    }
+    return true;
+  });
 
   if (loading) return <div className="loading-state">Cargando consultas clínicas...</div>;
   if (error) return <div className="error-message">{error}</div>;
@@ -148,10 +174,27 @@ const TelemedicinaMedicoPanel = () => {
         </div>
       </div>
 
+      {/* Filtro rápido por tipo de cita */}
+      <div className="medico-filtros">
+        {[
+          { id: 'TODAS', label: 'Todas' },
+          { id: 'PRESENCIAL', label: 'Solo Presenciales' },
+          { id: 'TELEMEDICINA', label: 'Solo Telemedicina' }
+        ].map(f => (
+          <button
+            key={f.id}
+            className={`filtro-tab ${filtroTipo === f.id ? 'filtro-tab-active' : ''}`}
+            onClick={() => setFiltroTipo(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Listado de Pacientes */}
-      {citas.length === 0 ? (
+      {citasFiltradas.length === 0 ? (
         <div className="empty-state">
-          No registras citas para el día de hoy.
+          No registras citas con el filtro seleccionado.
         </div>
       ) : (
         <div className="tabla-medico-wrapper">
@@ -167,7 +210,7 @@ const TelemedicinaMedicoPanel = () => {
               </tr>
             </thead>
             <tbody>
-              {citas.map(cita => {
+              {citasFiltradas.map(cita => {
                 const badge = ESTADO_BADGES[cita.estado] || { label: cita.estado, clase: 'badge-disponible' };
                 const isTelemedicina = cita.tipo_cita === 'Telemedicina';
                 
@@ -267,6 +310,28 @@ const TelemedicinaMedicoPanel = () => {
             </div>
 
             <form onSubmit={handleFinalizarAtencion}>
+              {/* Notas Clínicas / Diagnóstico */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                  Notas Clínicas / Diagnóstico <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  placeholder="Escribe el diagnóstico, indicaciones o prescripción médica de la atención..."
+                  value={notasClinicas}
+                  onChange={(e) => setNotasClinicas(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 12px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    minHeight: '100px'
+                  }}
+                />
+              </div>
+
               {/* Selección de Acción */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
