@@ -20,12 +20,13 @@ const TelemedicinaMedicoPanel = () => {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState(null);
   const [accionTipo, setAccionTipo] = useState('ALTA'); // 'ALTA' o 'LOGISTICA'
-  const [logisticaTipo, setLogisticaTipo] = useState('Despacho'); // 'Despacho' o 'Visita'
+  const [tiposLogistica, setTiposLogistica] = useState(['Despacho']); // array para checkboxes (Despacho, Visita)
   const [direccion, setDireccion] = useState('');
   const [detalle, setDetalle] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState('TODAS');
   const [notasClinicas, setNotasClinicas] = useState('');
+  const [archivoPdf, setArchivoPdf] = useState(null); // archivo evidencia PDF
 
   const nombreMedico = user?.nombreMostrar || '';
 
@@ -64,16 +65,18 @@ const TelemedicinaMedicoPanel = () => {
   const abrirModalFinalizar = (cita) => {
     setCitaSeleccionada(cita);
     setAccionTipo('ALTA');
-    setLogisticaTipo('Despacho');
+    setTiposLogistica(['Despacho']);
     setDireccion('');
     setDetalle('');
     setNotasClinicas('');
+    setArchivoPdf(null);
     setModalAbierto(true);
   };
 
   const cerrarModal = () => {
     setModalAbierto(false);
     setCitaSeleccionada(null);
+    setArchivoPdf(null);
   };
 
   const handleFinalizarAtencion = async (e) => {
@@ -90,24 +93,36 @@ const TelemedicinaMedicoPanel = () => {
 
       // Si el médico seleccionó generar una orden de despacho o visita
       if (accionTipo === 'LOGISTICA') {
+        if (tiposLogistica.length === 0) {
+          alert('Por favor, selecciona al menos un Tipo de Cuidado/Logística.');
+          setGuardando(false);
+          return;
+        }
         if (!direccion.trim()) {
           alert('Por favor, ingresa la dirección para la logística.');
           setGuardando(false);
           return;
         }
 
+        const logisticaTipoStr = tiposLogistica.join(', ');
+
+        const formData = new FormData();
+        formData.append('rut_paciente', citaSeleccionada.rut_paciente);
+        formData.append('nombre_paciente', citaSeleccionada.nombre_paciente || '');
+        formData.append('tipo', logisticaTipoStr);
+        formData.append('direccion', direccion.trim());
+        if (detalle.trim()) {
+          formData.append('detalle', detalle.trim());
+        }
+        if (archivoPdf) {
+          formData.append('evidencia', archivoPdf);
+        }
+
         const logisticaResp = await fetch(`${API_URL}/api/logistica`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            rut_paciente: citaSeleccionada.rut_paciente,
-            nombre_paciente: citaSeleccionada.nombre_paciente,
-            tipo: logisticaTipo,
-            direccion: direccion.trim(),
-            detalle: detalle.trim() || null
-          })
+          // NOTA: Con FormData no especificamos Content-Type para permitir que el
+          // navegador asigne el boundary multipart/form-data automáticamente.
+          body: formData
         });
 
         if (!logisticaResp.ok) throw new Error('Error al registrar la orden en logística');
@@ -286,7 +301,10 @@ const TelemedicinaMedicoPanel = () => {
       {/* ── MODAL FINALIZAR ATENCIÓN ── */}
       {modalAbierto && citaSeleccionada && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
+          <div 
+            className="modal-content max-h-[90vh] overflow-y-auto" 
+            style={{ maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, color: '#1e293b' }}>Finalizar Atención Clínica</h3>
               <button onClick={cerrarModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', marginLeft: 'auto' }}>
@@ -365,26 +383,41 @@ const TelemedicinaMedicoPanel = () => {
               {accionTipo === 'LOGISTICA' && (
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                   
-                  {/* Tipo de orden */}
+                  {/* Tipo de orden (Checkboxes) */}
                   <div style={{ marginBottom: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>
                       Tipo de Cuidado/Logística
                     </label>
-                    <select
-                      value={logisticaTipo}
-                      onChange={(e) => setLogisticaTipo(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        fontSize: '0.9rem',
-                        background: 'white'
-                      }}
-                    >
-                      <option value="Despacho">Despacho de Medicamentos</option>
-                      <option value="Visita">Visita Domiciliaria</option>
-                    </select>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={tiposLogistica.includes('Despacho')}
+                          onChange={() => {
+                            setTiposLogistica(prev =>
+                              prev.includes('Despacho')
+                                ? prev.filter(t => t !== 'Despacho')
+                                : [...prev, 'Despacho']
+                            );
+                          }}
+                        />
+                        Despacho de Medicamentos
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={tiposLogistica.includes('Visita')}
+                          onChange={() => {
+                            setTiposLogistica(prev =>
+                              prev.includes('Visita')
+                                ? prev.filter(t => t !== 'Visita')
+                                : [...prev, 'Visita']
+                            );
+                          }}
+                        />
+                        Visita Domiciliaria
+                      </label>
+                    </div>
                   </div>
 
                   {/* Dirección */}
@@ -410,14 +443,36 @@ const TelemedicinaMedicoPanel = () => {
                   </div>
 
                   {/* Detalle o Receta */}
-                  <div style={{ marginBottom: '16px' }}>
+                  <div style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
                       Detalle / Receta de Fármacos o Indicaciones de Visita
                     </label>
                     <textarea
-                      placeholder={logisticaTipo === 'Despacho' ? 'Ej. Paracetamol 500mg (2 cajas), Losartán 50mg (1 caja)' : 'Ej. Control de signos vitales, curación de herida operatoria.'}
+                      placeholder={tiposLogistica.includes('Despacho') ? 'Ej. Paracetamol 500mg (2 cajas), Losartán 50mg (1 caja)' : 'Ej. Control de signos vitales, curación de herida operatoria.'}
                       value={detalle}
                       onChange={(e) => setDetalle(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Evidencia de Receta (PDF) */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
+                      Evidencia de Receta (PDF)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setArchivoPdf(e.target.files[0] || null)}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '8px 10px',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                        background: '#f8fafc',
+                        cursor: 'pointer'
+                      }}
                     />
                   </div>
                 </div>

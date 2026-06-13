@@ -92,6 +92,7 @@ const SelectorCitas = ({ onCitaAgendada }) => {
     return fecha < hoy;
   };
   const isFinde = (d) => {
+    if (import.meta.env.DEV) return false;
     const dow = new Date(calYear, calMonth, d).getDay();
     return dow === 0 || dow === 6;
   };

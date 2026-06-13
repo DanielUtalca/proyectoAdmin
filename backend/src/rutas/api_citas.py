@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Form, File, UploadFile
 from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db
@@ -143,14 +143,25 @@ def atender_cita(id_cita: int, req: Optional[AtenderCitaRequest] = Body(None), d
 # ─────────────────────────────────────────────
 
 @router.post("/logistica", response_model=LogisticaResponse)
-def crear_logistica(req: CrearLogisticaRequest, db: Session = Depends(get_db)):
+def crear_logistica(
+    rut_paciente: str = Form(...),
+    nombre_paciente: Optional[str] = Form(None),
+    tipo: str = Form(...),
+    direccion: str = Form(...),
+    detalle: Optional[str] = Form(None),
+    evidencia: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
     """Crea una nueva orden de logística (despacho de medicamentos o visita domiciliaria)"""
+    if evidencia:
+        print(f"Archivo recibido: {evidencia.filename}")
+
     nueva_orden = Logistica(
-        rut_paciente=req.rut_paciente,
-        nombre_paciente=req.nombre_paciente,
-        tipo=req.tipo,
-        direccion=req.direccion,
-        detalle=req.detalle,
+        rut_paciente=rut_paciente,
+        nombre_paciente=nombre_paciente,
+        tipo=tipo,
+        direccion=direccion,
+        detalle=detalle,
         estado="PENDIENTE"
     )
     db.add(nueva_orden)

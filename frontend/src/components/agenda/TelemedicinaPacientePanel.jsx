@@ -126,10 +126,10 @@ const TelemedicinaPacientePanel = () => {
               } catch { return cita.fecha_hora; }
             })();
 
-            // Regla de negocio: Deshabilitado si faltan más de 15 minutos
+            // Regla de negocio: Deshabilitado si faltan más de 15 minutos (omitido en desarrollo para pruebas)
             const diffMs = citaFecha ? citaFecha.getTime() - ahora.getTime() : 0;
             const diffMinutes = diffMs / (1000 * 60);
-            const deshabilitado = diffMinutes > 15;
+            const deshabilitado = import.meta.env.DEV ? false : diffMinutes > 15;
 
             return (
               <div
