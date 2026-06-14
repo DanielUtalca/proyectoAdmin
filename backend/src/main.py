@@ -100,6 +100,14 @@ app.include_router(api_citas.router, prefix="/api", tags=["Citas"])
 app.include_router(api_chat.router, prefix="/api", tags=["Chat IA"])
 
 # ─────────────────────────────────────────────
+# MONITOREO Y MÉTRICAS
+# ─────────────────────────────────────────────
+from prometheus_fastapi_instrumentator import Instrumentator
+
+# Instrumentar la aplicación para métricas de Prometheus
+Instrumentator().instrument(app).expose(app)
+
+# ─────────────────────────────────────────────
 # Endpoints Generales
 # ─────────────────────────────────────────────
 
