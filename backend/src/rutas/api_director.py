@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 import io
 import csv
+import psutil
+import platform
+import time
 from database import get_db
 from models import Usuario, Cita, Logistica, Receta
 
@@ -142,4 +145,73 @@ def get_report_preview(db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener vista previa de reportes: {str(e)}"
+        )
+
+@router.get("/admin/system-stats", tags=["Monitoreo"])
+def get_system_stats(db: Session = Depends(get_db)):
+    try:
+        # CPU usage
+        cpu_percent = psutil.cpu_percent(interval=None)
+        
+        # Memory metrics
+        vm = psutil.virtual_memory()
+        total_mb = round(vm.total / (1024 * 1024), 2)
+        used_mb = round(vm.used / (1024 * 1024), 2)
+        percent = vm.percent
+        
+        # Current process RSS memory
+        import os
+        try:
+            process = psutil.Process(os.getpid())
+            process_rss_mb = round(process.memory_info().rss / (1024 * 1024), 2)
+        except Exception:
+            process_rss_mb = 0.0
+            
+        # Database status and ping latency
+        db_status = "connected"
+        latency_ms = 0.0
+        try:
+            start_time = time.perf_counter()
+            db.execute(text("SELECT 1"))
+            latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        except Exception:
+            db_status = "disconnected"
+            
+        # Operating System details
+        os_platform = platform.system()
+        os_release = platform.release()
+        python_ver = platform.python_version()
+        
+        # Calculate uptime
+        try:
+            uptime = time.time() - psutil.boot_time()
+        except Exception:
+            try:
+                uptime = time.time() - psutil.Process(os.getpid()).create_time()
+            except Exception:
+                uptime = 0.0
+                
+        return {
+            "uptime_seconds": round(uptime, 2),
+            "cpu_percent": cpu_percent,
+            "memory": {
+                "total_mb": total_mb,
+                "used_mb": used_mb,
+                "percent": percent,
+                "process_rss_mb": process_rss_mb
+            },
+            "database": {
+                "status": db_status,
+                "latency_ms": latency_ms
+            },
+            "os": {
+                "platform": os_platform,
+                "release": os_release,
+                "python_version": python_ver
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener métricas del sistema: {str(e)}"
         )

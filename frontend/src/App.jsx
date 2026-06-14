@@ -11,6 +11,9 @@ import PacienteView from './pages/PacienteView';
 import MedicoView from './pages/MedicoView';
 import TrabajadorView from './pages/TrabajadorView';
 import DirectorView from './pages/DirectorView';
+import DirectorDashboard from './pages/DirectorDashboard';
+import DirectorReportes from './pages/DirectorReportes';
+import Monitoreo from './pages/Monitoreo';
 
 import MiAgendaPanel from './components/agenda/MiAgendaPanel';
 import AgendaMedicoPanel from './components/agenda/AgendaMedicoPanel';
@@ -140,23 +143,15 @@ function App() {
           {/* Submódulos del director */}
           <Route 
             path="general" 
-            element={
-              <ModulePlaceholder 
-                title="Dashboard General" 
-                iconName="LayoutDashboard" 
-                description="Indicadores clave de rendimiento (KPIs) del CESFAM: tasas de consulta, telemedicina, ausentismo e insumos." 
-              />
-            } 
+            element={<DirectorDashboard />} 
           />
           <Route 
             path="reportes" 
-            element={
-              <ModulePlaceholder 
-                title="Reportes Minsal" 
-                iconName="FileSpreadsheet" 
-                description="Generación y exportación de archivos planos y hojas de cálculo para el Registro Mensual de Atenciones (RMA) oficial del Minsal." 
-              />
-            } 
+            element={<DirectorReportes />} 
+          />
+          <Route 
+            path="monitoreo" 
+            element={<Monitoreo />} 
           />
         </Route>
 

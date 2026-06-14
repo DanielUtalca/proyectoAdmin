@@ -35,6 +35,8 @@ const getIcon = (iconName, size = 20) => {
       return <FileSpreadsheet size={size} />;
     case 'FileText':
       return <FileText size={size} />;
+    case 'Activity':
+      return <Activity size={size} />;
     default:
       return <User size={size} />;
   }
@@ -61,6 +63,7 @@ const MENU_CONFIG = {
   Director: [
     { label: 'Dashboard General', path: '/director/general', icon: 'LayoutDashboard' },
     { label: 'Reportes Minsal', path: '/director/reportes', icon: 'FileSpreadsheet' },
+    { label: 'Monitoreo Servidor', path: '/director/monitoreo', icon: 'Activity' },
   ],
 };
 

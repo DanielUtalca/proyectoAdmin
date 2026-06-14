@@ -14,7 +14,7 @@ from database import engine, Base, get_db, SessionLocal
 from models import Usuario, Cita
 
 # IMPORTANTE: Importamos nuestras nuevas rutas
-from rutas import api_login, api_citas, api_chat
+from rutas import api_login, api_citas, api_chat, api_director
 
 # Forzar la creación de tablas
 Base.metadata.create_all(bind=engine)
@@ -98,6 +98,7 @@ app.add_middleware(
 app.include_router(api_login.router, prefix="/api", tags=["Autenticación"])
 app.include_router(api_citas.router, prefix="/api", tags=["Citas"])
 app.include_router(api_chat.router, prefix="/api", tags=["Chat IA"])
+app.include_router(api_director.router, prefix="/api", tags=["Director"])
 
 # ─────────────────────────────────────────────
 # MONITOREO Y MÉTRICAS
