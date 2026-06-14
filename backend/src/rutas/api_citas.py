@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body, Form, File, 
 from typing import Optional
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cita, Usuario, Logistica
-from schemas import CitaResponse, CrearCitaRequest, CrearLogisticaRequest, LogisticaResponse, AtenderCitaRequest
+from models import Cita, Usuario, Logistica, Receta
+from schemas import CitaResponse, CrearCitaRequest, CrearLogisticaRequest, LogisticaResponse, AtenderCitaRequest, CrearRecetaRequest, RecetaResponse
 
 router = APIRouter()
 
@@ -147,27 +147,42 @@ def crear_logistica(
     rut_paciente: str = Form(...),
     nombre_paciente: Optional[str] = Form(None),
     tipo: str = Form(...),
-    direccion: str = Form(...),
+    direccion: Optional[str] = Form(None),
     detalle: Optional[str] = Form(None),
+    latitud: Optional[float] = Form(None),
+    longitud: Optional[float] = Form(None),
     evidencia: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """Crea una nueva orden de logística (despacho de medicamentos o visita domiciliaria)"""
+    """Crea una nueva orden de logística (despacho de medicamentos o visita domiciliaria).
+    Acepta coordenadas latitud/longitud opcionales obtenidas desde Nominatim (OpenStreetMap)."""
     if evidencia:
         print(f"Archivo recibido: {evidencia.filename}")
+
+    direc_final = direccion
+    if not direc_final or not direc_final.strip():
+        # Intentamos obtener la dirección del perfil del paciente
+        paciente = db.query(Usuario).filter(Usuario.rut == rut_paciente).first()
+        if paciente and paciente.direccion:
+            direc_final = paciente.direccion
+        else:
+            direc_final = "Dirección no registrada"
 
     nueva_orden = Logistica(
         rut_paciente=rut_paciente,
         nombre_paciente=nombre_paciente,
         tipo=tipo,
-        direccion=direccion,
+        direccion=direc_final,
         detalle=detalle,
-        estado="PENDIENTE"
+        estado="PENDIENTE",
+        latitud=latitud,
+        longitud=longitud,
     )
     db.add(nueva_orden)
     db.commit()
     db.refresh(nueva_orden)
     return nueva_orden
+
 
 @router.get("/logistica", response_model=list[LogisticaResponse])
 def get_logistica(db: Session = Depends(get_db)):
@@ -281,3 +296,63 @@ def get_stats_paciente(rut: str, db: Session = Depends(get_db)):
         "citas_virtuales_pendientes": citas_virtuales_pendientes,
         "despachos_pendientes": despachos_pendientes
     }
+
+
+# ─────────────────────────────────────────────
+# Endpoints de Recetas
+# ─────────────────────────────────────────────
+
+@router.post("/recetas", response_model=RecetaResponse)
+def crear_receta(req: CrearRecetaRequest, db: Session = Depends(get_db)):
+    """Crea una receta electrónica en el sistema. Si la modalidad de entrega
+    es 'Despacho a Domicilio', también inserta automáticamente la orden
+    en el módulo de logística."""
+    nueva_receta = Receta(
+        rut_paciente=req.rut_paciente,
+        nombre_paciente=req.nombre_paciente,
+        nombre_medico=req.nombre_medico,
+        fecha=req.fecha,
+        medicamentos=req.medicamentos,
+        indicaciones=req.indicaciones,
+        modalidad_entrega=req.modalidad_entrega
+    )
+    db.add(nueva_receta)
+    db.commit()
+    db.refresh(nueva_receta)
+
+    if req.modalidad_entrega == "Despacho a Domicilio":
+        # Creamos la orden en logística
+        detalle_despacho = f"Receta #{nueva_receta.id}: {req.medicamentos}"
+        if req.indicaciones:
+            detalle_despacho += f" | {req.indicaciones}"
+            
+        direc_final = req.direccion
+        if not direc_final or not direc_final.strip():
+            # Buscar dirección del perfil
+            paciente = db.query(Usuario).filter(Usuario.rut == req.rut_paciente).first()
+            if paciente and paciente.direccion:
+                direc_final = paciente.direccion
+            else:
+                direc_final = "Dirección no registrada"
+
+        nueva_orden = Logistica(
+            rut_paciente=req.rut_paciente,
+            nombre_paciente=req.nombre_paciente,
+            tipo="Despacho",
+            direccion=direc_final,
+            detalle=detalle_despacho[:254],  # Truncar a 254 caracteres para cumplir la longitud de la BD
+            estado="PENDIENTE",
+            latitud=req.latitud,
+            longitud=req.longitud
+        )
+        db.add(nueva_orden)
+        db.commit()
+
+    return nueva_receta
+
+
+@router.get("/recetas/paciente/{rut}", response_model=list[RecetaResponse])
+def get_recetas_paciente(rut: str, db: Session = Depends(get_db)):
+    """Retorna el historial de recetas de un paciente específico, ordenadas por fecha descendente."""
+    return db.query(Receta).filter(Receta.rut_paciente == rut).order_by(Receta.id.desc()).all()
+

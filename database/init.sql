@@ -36,5 +36,20 @@ CREATE TABLE IF NOT EXISTS logistica (
     tipo VARCHAR(50) NOT NULL,
     direccion VARCHAR(255) NOT NULL,
     detalle VARCHAR(255),
-    estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE'
+    estado VARCHAR(50) NOT NULL DEFAULT 'PENDIENTE',
+    latitud FLOAT,
+    longitud FLOAT
 );
+
+-- Crear tabla de Recetas
+CREATE TABLE IF NOT EXISTS recetas (
+    id SERIAL PRIMARY KEY,
+    rut_paciente VARCHAR(50) NOT NULL,
+    nombre_paciente VARCHAR(150),
+    nombre_medico VARCHAR(150) NOT NULL,
+    fecha VARCHAR(50) NOT NULL,
+    medicamentos TEXT NOT NULL,
+    indicaciones TEXT,
+    modalidad_entrega VARCHAR(50) NOT NULL
+);
+

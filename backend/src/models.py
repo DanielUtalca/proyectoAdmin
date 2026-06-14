@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Float
 from database import Base
 
 class Usuario(Base):
@@ -41,3 +41,18 @@ class Logistica(Base):
     direccion = Column(String(255), nullable=False)
     detalle = Column(String(255), nullable=True)        # Ej. "Medicamentos A, B" o motivo de visita
     estado = Column(String(50), nullable=False, default='PENDIENTE')  # 'PENDIENTE', 'EN_CAMINO', 'COMPLETADO'
+    latitud = Column(Float, nullable=True)              # Coordenada geográfica (Nominatim)
+    longitud = Column(Float, nullable=True)             # Coordenada geográfica (Nominatim)
+
+class Receta(Base):
+    __tablename__ = "recetas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rut_paciente = Column(String(50), index=True, nullable=False)
+    nombre_paciente = Column(String(150), nullable=True)
+    nombre_medico = Column(String(150), nullable=False)
+    fecha = Column(String(50), nullable=False)
+    medicamentos = Column(String, nullable=False)        # Medicamentos en formato serializado (JSON o string descriptivo)
+    indicaciones = Column(String, nullable=True)
+    modalidad_entrega = Column(String(50), nullable=False)  # 'Retiro en Farmacia' o 'Despacho a Domicilio'
+

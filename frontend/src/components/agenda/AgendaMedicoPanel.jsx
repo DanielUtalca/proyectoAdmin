@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
@@ -9,16 +10,151 @@ const BADGE_CONFIG = {
   ATENDIDA:  { label: 'Atendida',  clase: 'badge-atendida'  },
 };
 
+// ─────────────────────────────────────────────────────────
+// Modal: Finalizar Atención
+// ─────────────────────────────────────────────────────────
+const ModalFinalizarAtencion = ({ cita, onClose, onConfirm }) => {
+  const navigate = useNavigate();
+  const [notasClinicas, setNotasClinicas] = useState('');
+  const [requiereReceta, setRequiereReceta] = useState(false);
+  const [requiereVisita, setRequiereVisita] = useState(false);
+  const [procesando, setProcesando] = useState(false);
+
+  const handleConfirm = async (e) => {
+    e.preventDefault();
+    if (!notasClinicas.trim()) {
+      alert('Por favor, ingresa las Notas Clínicas / Diagnóstico de la atención.');
+      return;
+    }
+    
+    setProcesando(true);
+
+    try {
+      // 1. Marcar cita como ATENDIDA y guardar notas clínicas
+      const respCita = await fetch(`${API_URL}/api/citas/atender/${cita.id_cita}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas_clinicas: notasClinicas.trim() }),
+      });
+      if (!respCita.ok) throw new Error('Error al marcar la cita como atendida');
+
+      // 2. Si se marcó visita domiciliaria, crear orden tipo 'Visita'
+      if (requiereVisita) {
+        const formData = new FormData();
+        formData.append('rut_paciente', cita.rut_paciente || '');
+        formData.append('nombre_paciente', cita.nombre_paciente || '');
+        formData.append('tipo', 'Visita');
+        formData.append('detalle', `Visita programada al finalizar atención. Notas clínicas: ${notasClinicas.trim()}`);
+        // La dirección se autocompletará en el backend desde el perfil del paciente
+
+        const respLog = await fetch(`${API_URL}/api/logistica`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!respLog.ok) throw new Error('Error al programar la visita domiciliaria');
+      }
+
+      onConfirm(); // Recarga la agenda
+
+      // 3. Si se marcó receta, redirigir al panel de receta
+      if (requiereReceta) {
+        navigate(`/medico/receta?rut=${encodeURIComponent(cita.rut_paciente)}`);
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-content"
+        style={{ maxWidth: '480px' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 style={{ marginBottom: '6px' }}>📋 Finalizar Atención Clínica</h3>
+        <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '20px' }}>
+          Paciente: <strong>{cita.nombre_paciente || cita.rut_paciente}</strong>
+        </p>
+
+        <form onSubmit={handleConfirm}>
+          {/* Notas Clínicas */}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+              Notas Clínicas / Diagnóstico <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <textarea
+              placeholder="Registra el diagnóstico, anamnesis e indicaciones del paciente..."
+              value={notasClinicas}
+              onChange={(e) => setNotasClinicas(e.target.value)}
+              required
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 12px', border: '1px solid #cbd5e1',
+                borderRadius: '8px', fontSize: '0.9rem', minHeight: '110px',
+                resize: 'vertical', fontFamily: 'inherit', color: '#374151',
+              }}
+            />
+          </div>
+
+          {/* Decisiones Clínicas (Checkboxes) */}
+          <div style={{
+            background: '#f8fafc', border: '1px solid #e2e8f0',
+            borderRadius: '10px', padding: '14px', marginBottom: '20px',
+            display: 'flex', flexDirection: 'column', gap: '12px'
+          }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Decisiones Clínicas Posteriores
+            </span>
+            
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={requiereReceta}
+                onChange={() => setRequiereReceta(v => !v)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+              />
+              El paciente requiere emisión de Receta Médica
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={requiereVisita}
+                onChange={() => setRequiereVisita(v => !v)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+              />
+              Programar Visita Domiciliaria (Procedimiento en casa)
+            </label>
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={procesando}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" disabled={procesando}>
+              {procesando ? 'Guardando...' : '✓ Confirmar e Ir al Cierre'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────
+// Componente Principal: Agenda del Médico
+// ─────────────────────────────────────────────────────────
 const AgendaMedicoPanel = () => {
   const { user } = useAuth();
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filtro, setFiltro] = useState('TODAS');
-  const [procesando, setProcesando] = useState(null);
+  const [citaModal, setCitaModal] = useState(null); // cita seleccionada para el modal
 
-  // El nombre_mostrar ya viene como "Dr. Andrés Castro" desde el backend
-  // y coincide exactamente con el formato que usa la tabla de citas.
   const nombreMedico = user?.nombreMostrar || '';
 
   useEffect(() => { fetchCitas(); }, []);
@@ -40,25 +176,10 @@ const AgendaMedicoPanel = () => {
     }
   };
 
-  const handleAtender = async (idCita) => {
-    if (!window.confirm('¿Confirmas que esta cita fue atendida?')) return;
-    try {
-      setProcesando(idCita);
-      const resp = await fetch(`${API_URL}/api/citas/atender/${idCita}`, { method: 'PUT' });
-      if (!resp.ok) throw new Error('Error al actualizar la cita');
-      await fetchCitas();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setProcesando(null);
-    }
-  };
-
   const citasFiltradas = filtro === 'TODAS'
     ? citas
     : citas.filter(c => c.estado === filtro);
 
-  // Estadísticas rápidas
   const totalReservadas = citas.filter(c => c.estado === 'RESERVADA').length;
   const totalAtendidas  = citas.filter(c => c.estado === 'ATENDIDA').length;
 
@@ -73,7 +194,6 @@ const AgendaMedicoPanel = () => {
           <h2 style={{ margin: 0, color: '#1e293b' }}>Mi Agenda</h2>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.9rem' }}>{nombreMedico}</p>
         </div>
-        {/* KPIs rápidos */}
         <div className="medico-kpis">
           <div className="kpi-card kpi-reservadas">
             <span className="kpi-num">{totalReservadas}</span>
@@ -86,7 +206,7 @@ const AgendaMedicoPanel = () => {
         </div>
       </div>
 
-      {/* Filtro de estado */}
+      {/* Filtros */}
       <div className="medico-filtros">
         {['TODAS', 'RESERVADA', 'ATENDIDA'].map(f => (
           <button
@@ -120,7 +240,6 @@ const AgendaMedicoPanel = () => {
             <tbody>
               {citasFiltradas.map(cita => {
                 const badge = BADGE_CONFIG[cita.estado] || {};
-                // Construir fecha (el string es "YYYY-MM-DD HH:MM")
                 const fechaDisplay = (() => {
                   try {
                     return new Date(cita.fecha_hora.replace(' ', 'T') + ':00')
@@ -148,10 +267,9 @@ const AgendaMedicoPanel = () => {
                       {cita.estado === 'RESERVADA' && (
                         <button
                           className="btn-atender"
-                          onClick={() => handleAtender(cita.id_cita)}
-                          disabled={procesando === cita.id_cita}
+                          onClick={() => setCitaModal(cita)}
                         >
-                          {procesando === cita.id_cita ? '...' : '✓ Atendida'}
+                          📋 Finalizar Atención
                         </button>
                       )}
                       {cita.estado === 'ATENDIDA' && (
@@ -164,6 +282,18 @@ const AgendaMedicoPanel = () => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modal Finalizar Atención */}
+      {citaModal && (
+        <ModalFinalizarAtencion
+          cita={citaModal}
+          onClose={() => setCitaModal(null)}
+          onConfirm={() => {
+            setCitaModal(null);
+            fetchCitas();
+          }}
+        />
       )}
     </div>
   );

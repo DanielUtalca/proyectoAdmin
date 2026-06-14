@@ -145,6 +145,8 @@ class CrearLogisticaRequest(BaseModel):
     tipo: str          # 'Despacho', 'Visita'
     direccion: str
     detalle: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
 
 class LogisticaResponse(BaseModel):
     id: int
@@ -154,7 +156,40 @@ class LogisticaResponse(BaseModel):
     direccion: str
     detalle: Optional[str] = None
     estado: str
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
 
     class Config:
         from_attributes = True
+
+
+# ─────────────────────────────────────────────
+# Esquemas de Recetas
+# ─────────────────────────────────────────────
+
+class CrearRecetaRequest(BaseModel):
+    rut_paciente: str
+    nombre_paciente: Optional[str] = None
+    nombre_medico: str
+    fecha: str
+    medicamentos: str
+    indicaciones: Optional[str] = None
+    modalidad_entrega: str  # 'Retiro en Farmacia' o 'Despacho a Domicilio'
+    direccion: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+
+class RecetaResponse(BaseModel):
+    id: int
+    rut_paciente: str
+    nombre_paciente: Optional[str] = None
+    nombre_medico: str
+    fecha: str
+    medicamentos: str
+    indicaciones: Optional[str] = None
+    modalidad_entrega: str
+
+    class Config:
+        from_attributes = True
+
 

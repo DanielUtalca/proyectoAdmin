@@ -46,10 +46,12 @@ const MENU_CONFIG = {
     { label: 'Mi Agenda', path: '/paciente/agenda', icon: 'CalendarDays' },
     { label: 'Sala de Telemedicina', path: '/paciente/telemedicina', icon: 'Video' },
     { label: 'Mis Despachos', path: '/paciente/despachos', icon: 'MapPin' },
+    { label: 'Historial Recetas', path: '/paciente/recetas', icon: 'FileText' },
   ],
   Médico: [
     { label: 'Agenda Diaria', path: '/medico/agenda', icon: 'CalendarDays' },
     { label: 'Atención Telemedicina', path: '/medico/telemedicina', icon: 'Video' },
+    { label: 'Visitas Domiciliarias', path: '/medico/visitas', icon: 'MapPin' },
     { label: 'Emitir Receta', path: '/medico/receta', icon: 'FileText' },
   ],
   Trabajador: [

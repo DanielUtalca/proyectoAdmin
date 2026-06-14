@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Video, UserCheck, CheckCircle, X, Loader2 } from 'lucide-react';
+import { Video, UserCheck, CheckCircle, X, Loader2, MapPin } from 'lucide-react';
 
 const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000';
 
@@ -10,30 +11,154 @@ const ESTADO_BADGES = {
   ATENDIDA: { label: 'Completada', clase: 'badge-atendida' }
 };
 
+// ─────────────────────────────────────────────────────────
+// Autocompletado Nominatim — restringido a Chile
+// ─────────────────────────────────────────────────────────
+const DireccionAutocomplete = ({ value, onChange, onCoordChange }) => {
+  const [query, setQuery] = useState(value || '');
+  const [sugerencias, setSugerencias] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [abierto, setAbierto] = useState(false);
+  const [coordsOk, setCoordsOk] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setAbierto(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const buscarDirecciones = useCallback((texto) => {
+    if (!texto || texto.trim().length < 3) {
+      setSugerencias([]);
+      setAbierto(false);
+      return;
+    }
+    setBuscando(true);
+    fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=cl&addressdetails=1&limit=6&q=${encodeURIComponent(texto)}`,
+      { headers: { 'Accept-Language': 'es', 'User-Agent': 'CESFAM-Purranque/1.0' } }
+    )
+      .then(r => r.json())
+      .then(data => {
+        setSugerencias(Array.isArray(data) ? data : []);
+        setAbierto(Array.isArray(data) && data.length > 0);
+      })
+      .catch(() => { setSugerencias([]); setAbierto(false); })
+      .finally(() => setBuscando(false));
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange(val);
+    setCoordsOk(false);
+    onCoordChange(null, null);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => buscarDirecciones(val), 450);
+  };
+
+  const handleSelect = (item) => {
+    const nombre = item.display_name;
+    setQuery(nombre);
+    onChange(nombre);
+    onCoordChange(parseFloat(item.lat), parseFloat(item.lon));
+    setCoordsOk(true);
+    setSugerencias([]);
+    setAbierto(false);
+  };
+
+  return (
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => sugerencias.length > 0 && setAbierto(true)}
+          placeholder="Ej: Los Aromos 123, Purranque..."
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: coordsOk ? '10px 36px 10px 12px' : '10px 36px 10px 12px',
+            border: `1px solid ${coordsOk ? '#22c55e' : '#cbd5e1'}`,
+            borderRadius: '8px', fontSize: '0.9rem', color: '#374151',
+            outline: 'none', transition: 'border-color 0.2s',
+            background: coordsOk ? '#f0fdf4' : 'white',
+          }}
+        />
+        <span style={{
+          position: 'absolute', right: '10px', top: '50%',
+          transform: 'translateY(-50%)', fontSize: '0.8rem',
+          color: coordsOk ? '#16a34a' : buscando ? '#94a3b8' : '#cbd5e1',
+          pointerEvents: 'none',
+        }}>
+          {buscando ? '⏳' : coordsOk ? '📌' : <MapPin size={14} />}
+        </span>
+      </div>
+
+      {coordsOk && (
+        <p style={{ margin: '3px 0 0', fontSize: '0.75rem', color: '#16a34a', fontWeight: 500 }}>
+          ✓ Coordenadas GPS obtenidas — el chofer verá el pin en el mapa
+        </p>
+      )}
+
+      {abierto && sugerencias.length > 0 && (
+        <ul style={{
+          position: 'absolute', zIndex: 9999, top: '100%', left: 0, right: 0,
+          background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.16)', margin: '4px 0 0',
+          padding: 0, listStyle: 'none', maxHeight: '200px', overflowY: 'auto',
+        }}>
+          {sugerencias.map((item) => (
+            <li
+              key={item.place_id}
+              onMouseDown={() => handleSelect(item)}
+              style={{
+                padding: '9px 14px', cursor: 'pointer',
+                fontSize: '0.83rem', color: '#374151',
+                borderBottom: '1px solid #f1f5f9',
+                lineHeight: 1.4,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+              onMouseLeave={e => e.currentTarget.style.background = 'white'}
+            >
+              📍 {item.display_name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────
+// Componente Principal
+// ─────────────────────────────────────────────────────────
 const TelemedicinaMedicoPanel = () => {
   const { user } = useAuth();
   const [citas, setCitas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Estados de control para el Modal
+
+  // Estados del Modal
   const [modalAbierto, setModalAbierto] = useState(false);
   const [citaSeleccionada, setCitaSeleccionada] = useState(null);
-  const [accionTipo, setAccionTipo] = useState('ALTA'); // 'ALTA' o 'LOGISTICA'
-  const [tiposLogistica, setTiposLogistica] = useState(['Despacho']); // array para checkboxes (Despacho, Visita)
-  const [direccion, setDireccion] = useState('');
-  const [detalle, setDetalle] = useState('');
+  const [requiereReceta, setRequiereReceta] = useState(false);
+  const [requiereVisita, setRequiereVisita] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState('TODAS');
   const [notasClinicas, setNotasClinicas] = useState('');
-  const [archivoPdf, setArchivoPdf] = useState(null); // archivo evidencia PDF
 
   const nombreMedico = user?.nombreMostrar || '';
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (nombreMedico) {
-      fetchCitas();
-    }
+    if (nombreMedico) fetchCitas();
   }, [nombreMedico]);
 
   const fetchCitas = async () => {
@@ -64,19 +189,15 @@ const TelemedicinaMedicoPanel = () => {
 
   const abrirModalFinalizar = (cita) => {
     setCitaSeleccionada(cita);
-    setAccionTipo('ALTA');
-    setTiposLogistica(['Despacho']);
-    setDireccion('');
-    setDetalle('');
+    setRequiereReceta(false);
+    setRequiereVisita(false);
     setNotasClinicas('');
-    setArchivoPdf(null);
     setModalAbierto(true);
   };
 
   const cerrarModal = () => {
     setModalAbierto(false);
     setCitaSeleccionada(null);
-    setArchivoPdf(null);
   };
 
   const handleFinalizarAtencion = async (e) => {
@@ -91,58 +212,36 @@ const TelemedicinaMedicoPanel = () => {
     try {
       setGuardando(true);
 
-      // Si el médico seleccionó generar una orden de despacho o visita
-      if (accionTipo === 'LOGISTICA') {
-        if (tiposLogistica.length === 0) {
-          alert('Por favor, selecciona al menos un Tipo de Cuidado/Logística.');
-          setGuardando(false);
-          return;
-        }
-        if (!direccion.trim()) {
-          alert('Por favor, ingresa la dirección para la logística.');
-          setGuardando(false);
-          return;
-        }
+      // 1. Marcar cita como ATENDIDA y guardar notas clínicas
+      const atenderResp = await fetch(`${API_URL}/api/citas/atender/${citaSeleccionada.id_cita}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notas_clinicas: notasClinicas.trim() })
+      });
+      if (!atenderResp.ok) throw new Error('Error al registrar la finalización de la cita');
 
-        const logisticaTipoStr = tiposLogistica.join(', ');
-
+      // 2. Si se marcó visita domiciliaria, crear orden tipo 'Visita'
+      if (requiereVisita) {
         const formData = new FormData();
         formData.append('rut_paciente', citaSeleccionada.rut_paciente);
         formData.append('nombre_paciente', citaSeleccionada.nombre_paciente || '');
-        formData.append('tipo', logisticaTipoStr);
-        formData.append('direccion', direccion.trim());
-        if (detalle.trim()) {
-          formData.append('detalle', detalle.trim());
-        }
-        if (archivoPdf) {
-          formData.append('evidencia', archivoPdf);
-        }
+        formData.append('tipo', 'Visita');
+        formData.append('detalle', `Visita programada al finalizar atención. Notas clínicas: ${notasClinicas.trim()}`);
 
         const logisticaResp = await fetch(`${API_URL}/api/logistica`, {
           method: 'POST',
-          // NOTA: Con FormData no especificamos Content-Type para permitir que el
-          // navegador asigne el boundary multipart/form-data automáticamente.
           body: formData
         });
-
         if (!logisticaResp.ok) throw new Error('Error al registrar la orden en logística');
       }
 
-      // Marcar la cita como Atendida/Completada
-      const atenderResp = await fetch(`${API_URL}/api/citas/atender/${citaSeleccionada.id_cita}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          notas_clinicas: notasClinicas.trim()
-        })
-      });
-
-      if (!atenderResp.ok) throw new Error('Error al registrar la finalización de la cita');
-
       cerrarModal();
       await fetchCitas();
+
+      // 3. Si se marcó receta, redirigir al panel de receta
+      if (requiereReceta) {
+        navigate(`/medico/receta?rut=${encodeURIComponent(citaSeleccionada.rut_paciente)}`);
+      }
     } catch (err) {
       alert(err.message);
     } finally {
@@ -150,16 +249,13 @@ const TelemedicinaMedicoPanel = () => {
     }
   };
 
+
   const pendientes = citas.filter(c => c.estado === 'RESERVADA').length;
   const completadas = citas.filter(c => c.estado === 'ATENDIDA').length;
 
   const citasFiltradas = citas.filter(cita => {
-    if (filtroTipo === 'PRESENCIAL') {
-      return cita.tipo_cita !== 'Telemedicina';
-    }
-    if (filtroTipo === 'TELEMEDICINA') {
-      return cita.tipo_cita === 'Telemedicina';
-    }
+    if (filtroTipo === 'PRESENCIAL') return cita.tipo_cita !== 'Telemedicina';
+    if (filtroTipo === 'TELEMEDICINA') return cita.tipo_cita === 'Telemedicina';
     return true;
   });
 
@@ -168,7 +264,7 @@ const TelemedicinaMedicoPanel = () => {
 
   return (
     <div className="agenda-container">
-      {/* Encabezado del Panel */}
+      {/* Encabezado */}
       <div className="medico-header">
         <div>
           <h2 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -176,7 +272,6 @@ const TelemedicinaMedicoPanel = () => {
           </h2>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.9rem' }}>{nombreMedico}</p>
         </div>
-        {/* KPIs Rápidos */}
         <div className="medico-kpis">
           <div className="kpi-card kpi-reservadas">
             <span className="kpi-num">{pendientes}</span>
@@ -189,7 +284,7 @@ const TelemedicinaMedicoPanel = () => {
         </div>
       </div>
 
-      {/* Filtro rápido por tipo de cita */}
+      {/* Filtros */}
       <div className="medico-filtros">
         {[
           { id: 'TODAS', label: 'Todas' },
@@ -206,11 +301,9 @@ const TelemedicinaMedicoPanel = () => {
         ))}
       </div>
 
-      {/* Listado de Pacientes */}
+      {/* Tabla */}
       {citasFiltradas.length === 0 ? (
-        <div className="empty-state">
-          No registras citas con el filtro seleccionado.
-        </div>
+        <div className="empty-state">No registras citas con el filtro seleccionado.</div>
       ) : (
         <div className="tabla-medico-wrapper">
           <table className="tabla-medico">
@@ -228,39 +321,25 @@ const TelemedicinaMedicoPanel = () => {
               {citasFiltradas.map(cita => {
                 const badge = ESTADO_BADGES[cita.estado] || { label: cita.estado, clase: 'badge-disponible' };
                 const isTelemedicina = cita.tipo_cita === 'Telemedicina';
-                
-                // Formateador de fecha amigable para el doctor
                 const fechaDisplay = (() => {
                   try {
                     return new Date(cita.fecha_hora.replace(' ', 'T') + ':00')
-                      .toLocaleString('es-CL', {
-                        weekday: 'short', day: '2-digit',
-                        month: 'short', hour: '2-digit', minute: '2-digit'
-                      });
+                      .toLocaleString('es-CL', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
                   } catch { return cita.fecha_hora; }
                 })();
 
                 return (
                   <tr key={cita.id_cita} className={cita.estado === 'ATENDIDA' ? 'fila-atendida' : ''}>
-                    <td>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{fechaDisplay}</span>
-                    </td>
+                    <td><span style={{ fontWeight: 600, color: '#1e293b' }}>{fechaDisplay}</span></td>
                     <td>{cita.nombre_paciente || '—'}</td>
                     <td style={{ fontSize: '0.85rem', color: '#64748b' }}>{cita.rut_paciente || '—'}</td>
                     <td>
-                      {isTelemedicina ? (
-                        <span className="cita-badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
-                          Telemedicina
-                        </span>
-                      ) : (
-                        <span className="cita-badge" style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
-                          Presencial
-                        </span>
-                      )}
+                      {isTelemedicina
+                        ? <span className="cita-badge" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>Telemedicina</span>
+                        : <span className="cita-badge" style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 600 }}>Presencial</span>
+                      }
                     </td>
-                    <td>
-                      <span className={`cita-badge ${badge.clase}`}>{badge.label}</span>
-                    </td>
+                    <td><span className={`cita-badge ${badge.clase}`}>{badge.label}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {cita.estado === 'RESERVADA' && (
@@ -301,35 +380,26 @@ const TelemedicinaMedicoPanel = () => {
       {/* ── MODAL FINALIZAR ATENCIÓN ── */}
       {modalAbierto && citaSeleccionada && (
         <div className="modal-overlay">
-          <div 
-            className="modal-content max-h-[90vh] overflow-y-auto" 
-            style={{ maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}
+          <div
+            className="modal-content"
+            style={{ maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, color: '#1e293b' }}>Finalizar Atención Clínica</h3>
-              <button onClick={cerrarModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', marginLeft: 'auto' }}>
+              <button onClick={cerrarModal} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
                 <X size={18} color="#64748b" />
               </button>
             </div>
 
             <div className="modal-resumen" style={{ fontSize: '0.85rem' }}>
-              <div className="modal-resumen-row">
-                <span>Paciente:</span>
-                <strong>{citaSeleccionada.nombre_paciente}</strong>
-              </div>
-              <div className="modal-resumen-row">
-                <span>RUT:</span>
-                <strong>{citaSeleccionada.rut_paciente}</strong>
-              </div>
-              <div className="modal-resumen-row">
-                <span>Modalidad:</span>
-                <strong>{citaSeleccionada.tipo_cita}</strong>
-              </div>
+              <div className="modal-resumen-row"><span>Paciente:</span><strong>{citaSeleccionada.nombre_paciente}</strong></div>
+              <div className="modal-resumen-row"><span>RUT:</span><strong>{citaSeleccionada.rut_paciente}</strong></div>
+              <div className="modal-resumen-row"><span>Modalidad:</span><strong>{citaSeleccionada.tipo_cita}</strong></div>
             </div>
 
             <form onSubmit={handleFinalizarAtencion}>
-              {/* Notas Clínicas / Diagnóstico */}
-              <div style={{ marginBottom: '16px' }}>
+              {/* Notas Clínicas */}
+              <div style={{ marginBottom: '18px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
                   Notas Clínicas / Diagnóstico <span style={{ color: '#ef4444' }}>*</span>
                 </label>
@@ -339,158 +409,52 @@ const TelemedicinaMedicoPanel = () => {
                   onChange={(e) => setNotasClinicas(e.target.value)}
                   required
                   style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '10px 12px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    minHeight: '100px'
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '10px 12px', border: '1px solid #cbd5e1',
+                    borderRadius: '8px', fontSize: '0.9rem', minHeight: '110px',
+                    resize: 'vertical', fontFamily: 'inherit', color: '#374151',
                   }}
                 />
               </div>
 
-              {/* Selección de Acción */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
-                  Acción clínica para el alta:
+              {/* Decisiones Clínicas (Checkboxes) */}
+              <div style={{
+                background: '#f8fafc', border: '1px solid #e2e8f0',
+                borderRadius: '10px', padding: '14px', marginBottom: '20px',
+                display: 'flex', flexDirection: 'column', gap: '12px'
+              }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Decisiones Clínicas Posteriores
+                </span>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={requiereReceta}
+                    onChange={() => setRequiereReceta(v => !v)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                  />
+                  El paciente requiere emisión de Receta Médica
                 </label>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="accionTipo"
-                      value="ALTA"
-                      checked={accionTipo === 'ALTA'}
-                      onChange={() => setAccionTipo('ALTA')}
-                    />
-                    Alta clínica regular
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="accionTipo"
-                      value="LOGISTICA"
-                      checked={accionTipo === 'LOGISTICA'}
-                      onChange={() => setAccionTipo('LOGISTICA')}
-                    />
-                    Generar Orden de Logística
-                  </label>
-                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={requiereVisita}
+                    onChange={() => setRequiereVisita(v => !v)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                  />
+                  Programar Visita Domiciliaria (Procedimiento en casa)
+                </label>
               </div>
 
-              {/* Campos dinámicos si se elige Logística */}
-              {accionTipo === 'LOGISTICA' && (
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                  
-                  {/* Tipo de orden (Checkboxes) */}
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>
-                      Tipo de Cuidado/Logística
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={tiposLogistica.includes('Despacho')}
-                          onChange={() => {
-                            setTiposLogistica(prev =>
-                              prev.includes('Despacho')
-                                ? prev.filter(t => t !== 'Despacho')
-                                : [...prev, 'Despacho']
-                            );
-                          }}
-                        />
-                        Despacho de Medicamentos
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={tiposLogistica.includes('Visita')}
-                          onChange={() => {
-                            setTiposLogistica(prev =>
-                              prev.includes('Visita')
-                                ? prev.filter(t => t !== 'Visita')
-                                : [...prev, 'Visita']
-                            );
-                          }}
-                        />
-                        Visita Domiciliaria
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Dirección */}
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
-                      Dirección de Destino
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Dirección del domicilio del paciente"
-                      value={direccion}
-                      onChange={(e) => setDireccion(e.target.value)}
-                      required
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '10px 12px',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        fontSize: '0.9rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Detalle o Receta */}
-                  <div style={{ marginBottom: '12px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
-                      Detalle / Receta de Fármacos o Indicaciones de Visita
-                    </label>
-                    <textarea
-                      placeholder={tiposLogistica.includes('Despacho') ? 'Ej. Paracetamol 500mg (2 cajas), Losartán 50mg (1 caja)' : 'Ej. Control de signos vitales, curación de herida operatoria.'}
-                      value={detalle}
-                      onChange={(e) => setDetalle(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Evidencia de Receta (PDF) */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '4px', textTransform: 'uppercase' }}>
-                      Evidencia de Receta (PDF)
-                    </label>
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={(e) => setArchivoPdf(e.target.files[0] || null)}
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '8px 10px',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        fontSize: '0.9rem',
-                        background: '#f8fafc',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Botones de acción */}
+              {/* Botones */}
               <div className="modal-actions" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', marginTop: '16px' }}>
                 <button type="button" className="btn-secondary" onClick={cerrarModal} disabled={guardando}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-primary" disabled={guardando} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  {guardando ? (
-                    <>
-                      <Loader2 size={16} className="spin" /> Guardando...
-                    </>
-                  ) : (
-                    'Finalizar y Cerrar'
-                  )}
+                  {guardando ? <><Loader2 size={16} className="spin" /> Guardando...</> : '✓ Confirmar e Ir al Cierre'}
                 </button>
               </div>
             </form>

@@ -16,6 +16,12 @@ import MiAgendaPanel from './components/agenda/MiAgendaPanel';
 import AgendaMedicoPanel from './components/agenda/AgendaMedicoPanel';
 import TelemedicinaMedicoPanel from './components/agenda/TelemedicinaMedicoPanel';
 import TelemedicinaPacientePanel from './components/agenda/TelemedicinaPacientePanel';
+import PanelLogistica from './components/PanelLogistica';
+import RecetaMedicoPanel from './components/RecetaMedicoPanel';
+import MisDespachosPaciente from './components/MisDespachosPaciente';
+import HistorialRecetasPaciente from './components/HistorialRecetasPaciente';
+import VisitasDomiciliariasPanel from './components/VisitasDomiciliariasPanel';
+
 
 function App() {
   return (
@@ -52,15 +58,13 @@ function App() {
             path="telemedicina" 
             element={<TelemedicinaPacientePanel />} 
           />
-          <Route 
-            path="despachos" 
-            element={
-              <ModulePlaceholder 
-                title="Mis Despachos" 
-                iconName="MapPin" 
-                description="Realiza el seguimiento en tiempo real del despacho domiciliario de tus recetas y medicamentos prescritos." 
-              />
-            } 
+          <Route
+            path="despachos"
+            element={<MisDespachosPaciente />}
+          />
+          <Route
+            path="recetas"
+            element={<HistorialRecetasPaciente />}
           />
         </Route>
 
@@ -84,15 +88,13 @@ function App() {
             path="telemedicina" 
             element={<TelemedicinaMedicoPanel />} 
           />
-          <Route 
-            path="receta" 
-            element={
-              <ModulePlaceholder 
-                title="Emitir Receta" 
-                iconName="FileText" 
-                description="Formulario digital estructurado para prescribir medicamentos a pacientes y enviarlos a despacho logístico." 
-              />
-            } 
+          <Route
+            path="receta"
+            element={<RecetaMedicoPanel />}
+          />
+          <Route
+            path="visitas"
+            element={<VisitasDomiciliariasPanel />}
           />
         </Route>
 
@@ -118,15 +120,9 @@ function App() {
               />
             } 
           />
-          <Route 
-            path="logistica" 
-            element={
-              <ModulePlaceholder 
-                title="Rutas de Logística" 
-                iconName="Map" 
-                description="Asigna conductores, planifica las hojas de ruta y controla el estado de las entregas de medicamentos a domicilio." 
-              />
-            } 
+          <Route
+            path="logistica"
+            element={<PanelLogistica />}
           />
         </Route>
 
