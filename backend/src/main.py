@@ -170,3 +170,13 @@ def health_check(db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Base de datos no disponible: {str(e)}"
         )
+
+@app.get("/db-test")
+def db_test(db: Session = Depends(get_db)):
+    try:
+        from models import Usuario
+        count = db.query(Usuario).count()
+        return {"status": "success", "usuario_count": count}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
