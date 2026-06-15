@@ -1,12 +1,16 @@
 import os
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import time
 import sys
 from contextlib import asynccontextmanager
 
 # Asegurar que el directorio de src esté en el PYTHONPATH
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -101,12 +105,48 @@ app.include_router(api_chat.router, prefix="/api", tags=["Chat IA"])
 app.include_router(api_director.router, prefix="/api", tags=["Director"])
 
 # ─────────────────────────────────────────────
-# MONITOREO Y MÉTRICAS
+# MONITOREO: Middleware Prometheus manual
+# Evita el bug AttributeError de prometheus-fastapi-instrumentator
+# con FastAPI >= 0.100. Usa request.url.path directamente sin
+# inspeccionar objetos internos _IncludedRouter.
 # ─────────────────────────────────────────────
-from prometheus_fastapi_instrumentator import Instrumentator
+HTTP_REQUESTS_TOTAL = Counter(
+    "http_requests_total",
+    "Total de peticiones HTTP recibidas",
+    ["method", "path", "status_code"]
+)
+HTTP_REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds",
+    "Duración de las peticiones HTTP en segundos",
+    ["method", "path"]
+)
 
-# Instrumentar la aplicación para métricas de Prometheus
-Instrumentator().instrument(app).expose(app)
+class PrometheusMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.time()
+        response = await call_next(request)
+        duration = time.time() - start
+        path = request.url.path
+        # Excluir el propio endpoint de métricas para no generar ruido
+        if path != "/metrics":
+            HTTP_REQUESTS_TOTAL.labels(
+                method=request.method,
+                path=path,
+                status_code=str(response.status_code)
+            ).inc()
+            HTTP_REQUEST_DURATION.labels(
+                method=request.method,
+                path=path
+            ).observe(duration)
+        return response
+
+app.add_middleware(PrometheusMiddleware)
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    """Endpoint scrapeado por Prometheus para recolectar métricas."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 # ─────────────────────────────────────────────
 # Endpoints Generales
