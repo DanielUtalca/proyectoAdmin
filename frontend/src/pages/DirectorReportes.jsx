@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import './DirectorReportes.css';
 
+const API_URL = import.meta.env?.VITE_API_URL || '';
+
 const DirectorReportes = () => {
   const [loading, setLoading] = useState(true);
   const [citas, setCitas] = useState([]);
@@ -19,7 +21,7 @@ const DirectorReportes = () => {
 
   const fetchPreview = async () => {
     try {
-      const response = await fetch('/api/director/reportes/preview');
+      const response = await fetch(`${API_URL}/api/director/reportes/preview`);
       if (!response.ok) {
         throw new Error('Error al cargar la vista previa.');
       }
@@ -87,7 +89,7 @@ const DirectorReportes = () => {
   const handleExport = () => {
     setIsExporting(true);
     // Disparar la descarga de forma nativa redirigiendo a la URL del endpoint
-    window.location.href = '/api/director/reportes/export';
+    window.location.href = `${API_URL}/api/director/reportes/export`;
     setTimeout(() => setIsExporting(false), 2000);
   };
 

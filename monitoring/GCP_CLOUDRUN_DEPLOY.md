@@ -84,13 +84,15 @@ Dado que Cloud Run no puede almacenar la base de datos localmente debido a su na
 3. **Desplegar el Backend en Cloud Run:**
    Conecta el backend a Cloud SQL pasándole la cadena de conexión por variables de entorno:
    ```bash
-   gcloud run deploy cesfam-backend \
-     --image=us-central1-docker.pkg.dev/ID_DE_TU_PROYECTO/cesfam-repo/backend:latest \
-     --region=us-central1 \
-     --allow-unauthenticated \
-     --add-cloudsql-instances=ID_DE_TU_PROYECTO:us-central1:cesfam-db \
-     --set-env-vars="DATABASE_URL=postgresql://cesfam_user:tu_contraseña_segura@/cesfam?host=/cloudsql/ID_DE_TU_PROYECTO:us-central1:cesfam-db" \
-     --port=8000
+    gcloud run deploy cesfam-backend \
+      --image=us-central1-docker.pkg.dev/ID_DE_TU_PROYECTO/cesfam-repo/backend:latest \
+      --region=us-central1 \
+      --allow-unauthenticated \
+      --add-cloudsql-instances=ID_DE_TU_PROYECTO:us-central1:cesfam-db \
+      --set-env-vars="DATABASE_URL=postgresql://cesfam_user:tu_contraseña_segura@/cesfam?host=/cloudsql/ID_DE_TU_PROYECTO:us-central1:cesfam-db" \
+      --min-instances=2 \
+      --max-instances=10 \
+      --port=8000
    ```
    *Guarda la URL que te entregue este comando (ej. `https://cesfam-backend-xxxx.run.app`). La usaremos para configurar el Frontend.*
 
@@ -195,4 +197,182 @@ Si necesitas usar exactamente los contenedores configurados en este repositorio:
      --port=80
    ```
 
-¡Felicidades! Tu aplicación completa, base de datos y entorno de monitoreo con métricas en tiempo real ahora están corriendo de forma escalable y robusta en Google Cloud Run.
+---
+
+## 🪣 5. Uso de Google Cloud Storage (Buckets) para Almacenamiento de Archivos
+
+Para persistir archivos adjuntos (como la evidencia cargada en las órdenes de logística) de forma escalable y segura, se recomienda usar **Google Cloud Storage (GCS)** en lugar del almacenamiento efímero del contenedor de Cloud Run.
+
+Existen dos alternativas principales para esto:
+
+### Alternativa A: Integración por Código utilizando la API de Google Cloud Storage (Recomendada)
+
+Esta alternativa es ideal porque permite que la aplicación suba los archivos directamente al Bucket usando la SDK oficial de Google Cloud en Python.
+
+#### 1. Agregar dependencias en el backend:
+Agrega `google-cloud-storage` en tu archivo `backend/requirements.txt`:
+```txt
+google-cloud-storage>=2.10.0
+```
+
+#### 2. Crear el Bucket en Google Cloud Storage:
+```bash
+# Crear el bucket de almacenamiento (nombre único global)
+gcloud storage buckets create gs://nombre-unico-cesfam-archivos --location=us-central1
+```
+
+#### 3. Implementar el código en tu backend (FastAPI):
+Configura la subida en las rutas correspondientes (como al recibir la evidencia en `api_citas.py`):
+```python
+import os
+from google.cloud import storage
+
+# Nombre del bucket obtenido por variable de entorno
+BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "nombre-unico-cesfam-archivos")
+
+def subir_a_bucket(file_content: bytes, destination_blob_name: str, content_type: str):
+    """Sube un archivo directamente a un bucket de Google Cloud Storage."""
+    # El cliente se autentica automáticamente si corre dentro de Cloud Run
+    # utilizando las credenciales del Service Account asignado.
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+    
+    # Subir el archivo
+    blob.upload_from_string(file_content, content_type=content_type)
+    
+    # Retornar la URL pública u orientada a autenticación
+    return blob.public_url
+```
+
+---
+
+### Alternativa B: Montaje de Cloud Storage como Volumen FUSE en Cloud Run
+
+Si prefieres no modificar el código y hacer que tu backend crea que está guardando archivos en un directorio local ordinario, puedes montar tu Bucket directamente en un path de almacenamiento en Cloud Run utilizando **Cloud Storage FUSE**.
+
+#### 1. Crear el bucket en Google Cloud Storage:
+```bash
+gcloud storage buckets create gs://cesfam-archivos-locales --location=us-central1
+```
+
+#### 2. Desplegar el Backend indicando el montaje del volumen:
+Cuando despliegues tu backend en Cloud Run, añade los parámetros `--add-volume` y `--add-volume-mount`:
+```bash
+gcloud run deploy cesfam-backend \
+  --image=us-central1-docker.pkg.dev/ID_DE_TU_PROYECTO/cesfam-repo/backend:latest \
+  --region=us-central1 \
+  --allow-unauthenticated \
+  --add-cloudsql-instances=ID_DE_TU_PROYECTO:us-central1:cesfam-db \
+  --set-env-vars="DATABASE_URL=postgresql://cesfam_user:tu_contraseña_segura@/cesfam?host=/cloudsql/ID_DE_TU_PROYECTO:us-central1:cesfam-db" \
+  --add-volume=name=storage-volume,type=cloud-storage,bucket=cesfam-archivos-locales \
+  --add-volume-mount=volume=storage-volume,mount-path=/usr/src/app/uploads \
+  --port=8000
+```
+Cualquier archivo que el backend guarde dentro de `/usr/src/app/uploads` se sincronizará automáticamente y se persistirá de forma segura en tu bucket de Google Cloud Storage.
+
+---
+
+## 🔐 6. Seguridad e IAM (Cuentas de Servicio)
+
+Para que tu contenedor de Cloud Run tenga permisos de leer/escribir en tu base de datos de Cloud SQL y en tu Bucket de Cloud Storage sin guardar contraseñas ni archivos JSON de credenciales en tu código, debes usar una **Cuenta de Servicio**.
+
+1. **Crear una Cuenta de Servicio dedicada:**
+   ```bash
+   gcloud iam service-accounts create cesfam-runner \
+     --description="Cuenta de servicio para ejecutar contenedores de CESFAM en Cloud Run" \
+     --display-name="cesfam-runner"
+   ```
+
+2. **Otorgar los roles necesarios:**
+   - **Acceso a la base de datos (Cloud SQL Client):**
+     ```bash
+     gcloud projects add-iam-policy-binding ID_DE_TU_PROYECTO \
+       --member="serviceAccount:cesfam-runner@ID_DE_TU_PROYECTO.iam.gserviceaccount.com" \
+       --role="roles/cloudsql.client"
+     ```
+   - **Acceso al Bucket de Storage (Storage Object Admin):**
+     ```bash
+     gcloud projects add-iam-policy-binding ID_DE_TU_PROYECTO \
+       --member="serviceAccount:cesfam-runner@ID_DE_TU_PROYECTO.iam.gserviceaccount.com" \
+       --role="roles/storage.objectAdmin"
+     ```
+
+3. **Desplegar Cloud Run especificando la cuenta de servicio:**
+   Al desplegar tu Backend o tu Grafana, agrega el parámetro `--service-account`:
+   ```bash
+    gcloud run deploy cesfam-backend \
+      --image=us-central1-docker.pkg.dev/ID_DE_TU_PROYECTO/cesfam-repo/backend:latest \
+      --service-account=cesfam-runner@ID_DE_TU_PROYECTO.iam.gserviceaccount.com \
+      --region=us-central1 \
+      --allow-unauthenticated \
+      --add-cloudsql-instances=ID_DE_TU_PROYECTO:us-central1:cesfam-db \
+      --set-env-vars="DATABASE_URL=postgresql://cesfam_user:tu_contraseña_segura@/cesfam?host=/cloudsql/ID_DE_TU_PROYECTO:us-central1:cesfam-db" \
+      --min-instances=2 \
+      --max-instances=10 \
+      --port=8000
+   ```
+
+    ```
+
+---
+
+## 🏛️ 7. Justificación de Microservicios (3 Componentes)
+
+Para cumplir con la arquitectura orientada a microservicios, el sistema se divide en **3 componentes claramente diferenciados e independientes**:
+
+1. **Frontend (Capa de Presentación)**: Aplicación SPA React empaquetada en un contenedor Docker con Nginx. Corre en un servicio de Cloud Run independiente expuesto al público. Su responsabilidad es servir la UI al cliente.
+2. **Backend (Capa de Negocio y API)**: Servicio FastAPI Python que maneja la lógica de negocio, consultas de citas, chatbot de IA e interacción con la base de datos PostgreSQL. Corre en otro servicio independiente de Cloud Run.
+3. **Monitoreo (Capa de Observabilidad - Grafana)**: Servicio independiente de Grafana que consume métricas del backend a través de Prometheus y Google Cloud Monitoring, permitiendo al administrador auditar el rendimiento y telemetría de la web sin sobrecargar la API de negocio.
+
+---
+
+## ⚡ 8. Alta Disponibilidad y Resiliencia en Cloud Run
+
+El diseño arquitectónico implementado en GCP garantiza alta disponibilidad y resiliencia:
+* **Múltiples Instancias y Balanceo**: Configurado con `--min-instances=2` (dos réplicas calientes activas en todo momento) y escalabilidad automática hasta `--max-instances=10`. GCP maneja de forma nativa la distribución de carga y el balanceo HTTPS.
+* **Recuperación Automática**: Cloud Run monitorea la salud del contenedor. Si un contenedor falla, es destruido y reemplazado por uno nuevo automáticamente sin interrupción de servicio.
+* **Persistencia Desacoplada**: La base de datos corre en **Cloud SQL** (gestionado con backups automáticos y alta disponibilidad de GCP) y los archivos en **Google Cloud Storage (Buckets)**, eliminando la pérdida de datos cuando los contenedores escalan a cero o se reinician.
+
+---
+
+## 💾 9. Sistema de Respaldos (Backup y Restore)
+
+Para cumplir con el requisito obligatorio de sistema de respaldos:
+
+### A. Respaldos y Restauración de la Base de Datos (Cloud SQL)
+
+1. **Crear un respaldo manual bajo demanda:**
+   ```bash
+   gcloud sql backups create --instance=cesfam-db
+   ```
+2. **Listar los respaldos disponibles (para obtener el ID de respaldo):**
+   ```bash
+   gcloud sql backups list --instance=cesfam-db
+   ```
+3. **Restaurar la base de datos a partir de un respaldo:**
+   Reemplaza `ID_DEL_RESPALDO` con el valor obtenido del comando anterior:
+   ```bash
+   gcloud sql backups restore ID_DEL_RESPALDO \
+     --restore-instance=cesfam-db \
+     --backup-instance=cesfam-db
+   ```
+
+### B. Respaldos y Restauración de Archivos (Cloud Storage Buckets)
+
+1. **Crear un Bucket de respaldo:**
+   ```bash
+   gcloud storage buckets create gs://nombre-unico-cesfam-archivos-backup --location=us-central1
+   ```
+2. **Ejecutar el Respaldo (copiar todo el contenido del bucket principal al de respaldo):**
+   ```bash
+   gcloud storage cp -r gs://nombre-unico-cesfam-archivos/* gs://nombre-unico-cesfam-archivos-backup/
+   ```
+3. **Restaurar los archivos (en caso de pérdida o corrupción):**
+   ```bash
+   gcloud storage cp -r gs://nombre-unico-cesfam-archivos-backup/* gs://nombre-unico-cesfam-archivos/
+   ```
+
+---
+
+¡Felicidades! Tu aplicación completa, base de datos y entorno de monitoreo con métricas en tiempo real ahora están corriendo de forma escalable, segura y resiliente en Google Cloud.

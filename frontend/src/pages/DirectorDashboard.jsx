@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import './DirectorDashboard.css';
 
+const API_URL = import.meta.env?.VITE_API_URL || '';
+
 const DirectorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -21,7 +23,7 @@ const DirectorDashboard = () => {
   const fetchStats = async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const response = await fetch('/api/director/dashboard-stats');
+      const response = await fetch(`${API_URL}/api/director/dashboard-stats`);
       if (!response.ok) {
         throw new Error('Error al cargar estadísticas.');
       }

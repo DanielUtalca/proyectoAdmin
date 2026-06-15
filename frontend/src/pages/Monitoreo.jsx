@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import './Monitoreo.css';
 
+const API_URL = import.meta.env?.VITE_API_URL || '';
+
 const Monitoreo = () => {
   const [activeTab, setActiveTab] = useState('realtime');
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,7 @@ const Monitoreo = () => {
   const fetchStats = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const response = await fetch('/api/admin/system-stats');
+      const response = await fetch(`${API_URL}/api/admin/system-stats`);
       if (!response.ok) {
         throw new Error('No se pudo establecer conexión con el endpoint de telemetría.');
       }

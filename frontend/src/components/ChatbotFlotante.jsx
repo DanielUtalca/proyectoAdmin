@@ -3,7 +3,8 @@ import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './ChatbotFlotante.css';
 
-const API_CHAT_URL = '/api/chat';
+const API_URL = import.meta.env?.VITE_API_URL || '';
+const API_CHAT_URL = `${API_URL}/api/chat`;
 
 // Mensaje inicial del asistente al abrir el chat
 const MENSAJE_BIENVENIDA = {
