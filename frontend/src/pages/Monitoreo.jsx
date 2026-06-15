@@ -7,10 +7,8 @@ import {
   RefreshCw, 
   Clock, 
   ExternalLink, 
-  Cloud, 
   CheckCircle, 
   AlertTriangle,
-  Terminal,
   Server
 } from 'lucide-react';
 import './Monitoreo.css';
@@ -135,13 +133,6 @@ const Monitoreo = () => {
         >
           <Server size={18} />
           <span>Panel Histórico (Grafana)</span>
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'cloudrun' ? 'active' : ''}`}
-          onClick={() => setActiveTab('cloudrun')}
-        >
-          <Cloud size={18} />
-          <span>Despliegue Cloud Run</span>
         </button>
       </div>
 
@@ -292,7 +283,7 @@ const Monitoreo = () => {
               </div>
             </div>
           </div>
-        ) : activeTab === 'grafana' ? (
+        ) : (
           <div className="grafana-panel">
             <div className="grafana-actions">
               <p className="text-muted">
@@ -337,69 +328,6 @@ const Monitoreo = () => {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="cloudrun-panel glass">
-            <h2>Guía de Monitoreo en Google Cloud Run</h2>
-            <p className="intro-text">
-              Para subir este proyecto a Google Cloud Run, la arquitectura de monitoreo cambia de un modelo de "Raspado (Pull)" local a un modelo gestionado o de "Empuje (Push)" nativo de la nube. Aquí se detallan las opciones óptimas para producción.
-            </p>
-
-            <div className="deployment-methods">
-              <div className="method-box">
-                <div className="method-header">
-                  <span className="badge-method bg-primary">Recomendado</span>
-                  <h3>1. Google Cloud Managed Service for Prometheus (GMP)</h3>
-                </div>
-                <p>
-                  GCP ofrece soporte administrado para Prometheus. Cloud Run recopila automáticamente las métricas de tu contenedor si están habilitadas en el endpoint.
-                </p>
-                <div className="steps-container">
-                  <h4>Cómo implementarlo:</h4>
-                  <ol>
-                    <li>Exponer el endpoint <code>/metrics</code> (ya implementado en el backend con este cambio).</li>
-                    <li>
-                      Desplegar un agente co-lector de OpenTelemetry como <strong>sidecar</strong> en el mismo servicio de Cloud Run.
-                    </li>
-                    <li>El sidecar raspa <code>localhost:8000/metrics</code> y reenvía los datos a Google Cloud Monitoring sin configurar servidores.</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="method-box">
-                <div className="method-header">
-                  <span className="badge-method bg-success">Alternativo</span>
-                  <h3>2. Despliegue de Grafana en Cloud Run</h3>
-                </div>
-                <p>
-                  Puedes empaquetar Grafana en una imagen de Docker y subirla como un servicio independiente en Cloud Run.
-                </p>
-                <div className="steps-container">
-                  <h4>Pasos clave:</h4>
-                  <ul>
-                    <li>Conecta Grafana a la base de datos GCP Cloud Monitoring usando la integración nativa de Google Cloud Data Source.</li>
-                    <li>Utiliza una base de datos Cloud SQL (PostgreSQL) externa para almacenar la configuración y usuarios de Grafana para que persistan cuando Cloud Run escale a cero.</li>
-                    <li>Configura el rol de IAM <code>roles/monitoring.viewer</code> en Cloud Run para dar acceso a las métricas del proyecto GCP.</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="terminal-commands">
-              <div className="terminal-header">
-                <Terminal size={16} />
-                <span>Ejemplo de Comando de Despliegue de la API con Google Cloud SDK</span>
-              </div>
-              <pre>
-{`# Desplegar backend en Cloud Run habilitando la recolección automática de CPU/Memoria
-gcloud run deploy cesfam-backend \\
-  --source=./backend \\
-  --region=us-central1 \\
-  --allow-unauthenticated \\
-  --update-env-vars="DATABASE_URL=postgresql://user:pass@/db-instance?host=/cloudsql/project:region:db" \\
-  --port=8000`}
-              </pre>
             </div>
           </div>
         )}
