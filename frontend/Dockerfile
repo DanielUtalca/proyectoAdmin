@@ -13,10 +13,6 @@ RUN npm install
 # Copiar el resto del código fuente del frontend
 COPY . .
 
-# Recibir la variable de entorno durante la compilación de Docker
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-
 # Compilar la aplicación para producción
 RUN npm run build
 
