@@ -121,7 +121,6 @@ Para que Grafana tenga datos que mostrar, necesitas levantar un recolector de m√
 # 6.1 - Compilar la imagen de Prometheus en el repositorio de la nube
 gcloud builds submit \
   --tag us-central1-docker.pkg.dev/proyecto-cesfam-499520/cesfam-repo/prometheus:latest \
-  --file=monitoring/prometheus/Dockerfile.prod \
   ./monitoring/prometheus
 
 # 6.2 - Desplegar Prometheus en Cloud Run (Puerto 9090)
