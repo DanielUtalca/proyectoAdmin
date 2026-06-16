@@ -150,8 +150,8 @@ def get_report_preview(db: Session = Depends(get_db)):
 @router.get("/admin/system-stats", tags=["Monitoreo"])
 def get_system_stats(db: Session = Depends(get_db)):
     try:
-        # CPU usage
-        cpu_percent = psutil.cpu_percent(interval=None)
+        # CPU usage (intervalo de 0.1s para medir carga activa en Cloud Run)
+        cpu_percent = psutil.cpu_percent(interval=0.1)
         
         # Memory metrics
         vm = psutil.virtual_memory()
