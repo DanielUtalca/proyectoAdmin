@@ -14,6 +14,7 @@ import {
 import './Monitoreo.css';
 
 const API_URL = import.meta.env?.VITE_API_URL || '';
+const GRAFANA_URL = import.meta.env?.VITE_GRAFANA_URL || 'https://cesfam-grafana-271357973400.us-central1.run.app';
 
 const Monitoreo = () => {
   const [activeTab, setActiveTab] = useState('realtime');
@@ -290,7 +291,7 @@ const Monitoreo = () => {
                 Grafana lee en tiempo real la base de datos temporal de Prometheus. Puedes abrir el panel en pantalla completa para realizar auditorías avanzadas de tiempos de respuesta HTTP.
               </p>
               <a 
-                href="http://localhost:3000/d/fastapi_metrics/cesfam-api-metrics?orgId=1" 
+                href={`${GRAFANA_URL}/d/fastapi_metrics/cesfam-api-metrics?orgId=1`} 
                 target="_blank" 
                 rel="noreferrer"
                 className="btn btn-external-grafana"
@@ -303,12 +304,12 @@ const Monitoreo = () => {
             <div className="iframe-container glass">
               <iframe
                 title="Grafana FastAPI Dashboard"
-                src="http://localhost:3000/d/fastapi_metrics/cesfam-api-metrics?orgId=1&refresh=5s&kiosk"
+                src={`${GRAFANA_URL}/d/fastapi_metrics/cesfam-api-metrics?orgId=1&refresh=5s&kiosk`}
                 width="100%"
                 height="650"
                 frameBorder="0"
                 className="grafana-iframe"
-                onError={() => console.log('Error al conectar con Grafana local.')}
+                onError={() => console.log('Error al conectar con Grafana.')}
               ></iframe>
               <div className="iframe-fallback-overlay">
                 <div className="fallback-card">
