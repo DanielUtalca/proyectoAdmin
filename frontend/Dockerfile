@@ -27,10 +27,10 @@ FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copiar la configuración personalizada de Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
 
-# Exponer el puerto 80
-EXPOSE 80
+# Exponer el puerto 8080 para Cloud Run
+EXPOSE 8080
 
 # Iniciar Nginx
 CMD ["nginx", "-g", "daemon off;"]
