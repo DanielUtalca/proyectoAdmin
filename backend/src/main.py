@@ -20,63 +20,69 @@ from models import Usuario, Cita
 # IMPORTANTE: Importamos nuestras nuevas rutas
 from rutas import api_login, api_citas, api_chat, api_director
 
-# Forzar la creación de tablas
-Base.metadata.create_all(bind=engine)
+# Forzar la creación de tablas (con reintento/captura de errores para no tirar el contenedor si la BD está offline)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[Startup Warning] No se pudieron crear las tablas o conectar a la base de datos: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db = SessionLocal()
     try:
-        if db.query(Usuario).count() == 0:
-            test_users = [
-                Usuario(
-                    rut="12.345.678-9", password="password123", rol="Director",
-                    nombre="María", apellido="González", correo="maria@cesfam.cl",
-                    telefono="+56912345678", direccion="Calle Principal 123"
-                ),
-                Usuario(
-                    rut="11.222.333-4", password="password123", rol="Trabajador",
-                    nombre="Carlos", apellido="Ramírez", correo="carlos@cesfam.cl",
-                    telefono="+56987654321", direccion="Av. Los Aromos 456"
-                ),
-                Usuario(
-                    rut="9.876.543-2", password="password123", rol="Paciente",
-                    nombre="Juan", apellido="Pérez", correo="juan@gmail.com",
-                    telefono="+56911111111", direccion="Pasaje Los Pinos 789"
-                ),
-                Usuario(
-                    rut="14.444.555-6", password="password123", rol="Médico",
-                    nombre="Andrés", apellido="Castro", especialidad="Medicina General",
-                    correo="andres@cesfam.cl", telefono="+56922223333", direccion="Av. Central 789"
-                ),
-                Usuario(
-                    rut="15.555.666-7", password="password123", rol="Médico",
-                    nombre="Antonia", apellido="Vega", especialidad="Pediatría",
-                    correo="antonia@cesfam.cl", telefono="+56933334444", direccion="Paseo del Valle 456"
-                ),
-            ]
-            db.add_all(test_users)
-            db.commit()
-            print("[Startup] Base de datos sembrada exitosamente con usuarios de prueba.")
-            
-        if db.query(Cita).count() == 0:
-            # Sembramos solo UNA cita de ejemplo para que el médico tenga algo que ver en su panel
-            # El nuevo sistema crea citas dinámicamente desde el calendario del paciente.
-            test_citas = [
-                Cita(
-                    especialidad="Pediatría", nombre_medico="Dr. Antonia Vega",
-                    fecha_hora="2024-12-11 16:30", estado="RESERVADA",
-                    rut_paciente="9.876.543-2", nombre_paciente="Juan Pérez",
-                    motivo_consulta="Control sano niño"
-                )
-            ]
-            db.add_all(test_citas)
-            db.commit()
-            print("[Startup] Cita de prueba sembrada exitosamente.")
+        db = SessionLocal()
+        try:
+            if db.query(Usuario).count() == 0:
+                test_users = [
+                    Usuario(
+                        rut="12.345.678-9", password="password123", rol="Director",
+                        nombre="María", apellido="González", correo="maria@cesfam.cl",
+                        telefono="+56912345678", direccion="Calle Principal 123"
+                    ),
+                    Usuario(
+                        rut="11.222.333-4", password="password123", rol="Trabajador",
+                        nombre="Carlos", apellido="Ramírez", correo="carlos@cesfam.cl",
+                        telefono="+56987654321", direccion="Av. Los Aromos 456"
+                    ),
+                    Usuario(
+                        rut="9.876.543-2", password="password123", rol="Paciente",
+                        nombre="Juan", apellido="Pérez", correo="juan@gmail.com",
+                        telefono="+56911111111", direccion="Pasaje Los Pinos 789"
+                    ),
+                    Usuario(
+                        rut="14.444.555-6", password="password123", rol="Médico",
+                        nombre="Andrés", apellido="Castro", especialidad="Medicina General",
+                        correo="andres@cesfam.cl", telefono="+56922223333", direccion="Av. Central 789"
+                    ),
+                    Usuario(
+                        rut="15.555.666-7", password="password123", rol="Médico",
+                        nombre="Antonia", apellido="Vega", especialidad="Pediatría",
+                        correo="antonia@cesfam.cl", telefono="+56933334444", direccion="Paseo del Valle 456"
+                    ),
+                ]
+                db.add_all(test_users)
+                db.commit()
+                print("[Startup] Base de datos sembrada exitosamente con usuarios de prueba.")
+                
+            if db.query(Cita).count() == 0:
+                # Sembramos solo UNA cita de ejemplo para que el médico tenga algo que ver en su panel
+                # El nuevo sistema crea citas dinámicamente desde el calendario del paciente.
+                test_citas = [
+                    Cita(
+                        especialidad="Pediatría", nombre_medico="Dr. Antonia Vega",
+                        fecha_hora="2024-12-11 16:30", estado="RESERVADA",
+                        rut_paciente="9.876.543-2", nombre_paciente="Juan Pérez",
+                        motivo_consulta="Control sano niño"
+                    )
+                ]
+                db.add_all(test_citas)
+                db.commit()
+                print("[Startup] Cita de prueba sembrada exitosamente.")
+        except Exception as e:
+            print(f"[Startup Warning] Advertencia al sembrar base de datos: {e}")
+        finally:
+            db.close()
     except Exception as e:
-        print(f"[Startup] Advertencia al sembrar base de datos: {e}")
-    finally:
-        db.close()
+        print(f"[Startup Warning] Error al iniciar sesión de base de datos en lifespan: {e}")
     yield
 
 # Inicializar la aplicación
