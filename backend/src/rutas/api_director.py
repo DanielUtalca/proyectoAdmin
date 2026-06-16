@@ -12,6 +12,10 @@ from models import Usuario, Cita, Logistica, Receta
 
 router = APIRouter()
 
+# Variables globales para calcular el uso de CPU de forma no bloqueante y compatible con Cloud Run / gVisor
+_last_cpu_times = None
+_last_query_time = None
+
 @router.get("/director/dashboard-stats", tags=["Director"])
 def get_director_dashboard_stats(db: Session = Depends(get_db)):
     try:
@@ -149,9 +153,32 @@ def get_report_preview(db: Session = Depends(get_db)):
 
 @router.get("/admin/system-stats", tags=["Monitoreo"])
 def get_system_stats(db: Session = Depends(get_db)):
+    global _last_cpu_times, _last_query_time
     try:
-        # CPU usage (intervalo de 0.1s para medir carga activa en Cloud Run)
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        # Calcular uso de CPU a nivel de proceso (no bloqueante y compatible con gVisor/Cloud Run)
+        try:
+            process = psutil.Process()
+            current_times = process.cpu_times()
+            current_time = time.time()
+            
+            if _last_cpu_times is None or _last_query_time is None:
+                _last_cpu_times = current_times
+                _last_query_time = current_time
+                cpu_percent = 0.0
+            else:
+                cpu_delta = (current_times.user - _last_cpu_times.user) + (current_times.system - _last_cpu_times.system)
+                time_delta = current_time - _last_query_time
+                
+                _last_cpu_times = current_times
+                _last_query_time = current_time
+                
+                if time_delta > 0:
+                    cpu_percent = round((cpu_delta / time_delta) * 100.0, 2)
+                    cpu_percent = min(max(cpu_percent, 0.0), 100.0)
+                else:
+                    cpu_percent = 0.0
+        except Exception:
+            cpu_percent = 0.0
         
         # Memory metrics
         vm = psutil.virtual_memory()
