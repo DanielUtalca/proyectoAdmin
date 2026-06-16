@@ -256,33 +256,7 @@ const Monitoreo = () => {
               </div>
             </div>
 
-            {/* Simulación del estado de carga en red */}
-            <div className="card traffic-light-panel glass">
-              <div className="panel-inner-header">
-                <h2>Rendimiento de la API (Uvicorn / FastAPI)</h2>
-                <div className="pulse-network">
-                  <span className="ping-dot"></span> Exponiendo Métricas Prometheus
-                </div>
-              </div>
-              <div className="api-specs-grid">
-                <div className="spec-box">
-                  <span className="spec-title">Endpoint de Métricas</span>
-                  <code>/metrics</code>
-                </div>
-                <div className="spec-box">
-                  <span className="spec-title">Estado del Endpoint</span>
-                  <span className="text-success font-semibold">Activo (Scrapable)</span>
-                </div>
-                <div className="spec-box">
-                  <span className="spec-title">Motor ASGI</span>
-                  <span>Uvicorn @ 0.0.0.0:8000</span>
-                </div>
-                <div className="spec-box">
-                  <span className="spec-title">Middleware CORS</span>
-                  <span className="text-muted">Habilitado (*)</span>
-                </div>
-              </div>
-            </div>
+
           </div>
         ) : (
           <div className="grafana-panel">
