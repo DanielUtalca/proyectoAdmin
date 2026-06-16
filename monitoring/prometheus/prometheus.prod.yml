@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: 'fastapi-backend'
+    metrics_path: '/metrics'
+    scheme: 'https'
+    static_configs:
+      - targets: ['cesfam-backend-271357973400.us-central1.run.app:443']

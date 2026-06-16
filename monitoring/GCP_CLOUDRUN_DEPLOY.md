@@ -113,10 +113,35 @@ gcloud run deploy cesfam-backend \
 
 ---
 
-## 📊 PASO 6: Desplegar Grafana para Monitoreo
+## 📈 PASO 6: Compilar y Desplegar Prometheus (Servidor de Métricas)
+
+Para que Grafana tenga datos que mostrar, necesitas levantar un recolector de métricas **Prometheus** en Cloud Run que lea el endpoint `/metrics` de tu backend:
 
 ```bash
-# 6.1 - Desplegar la imagen de Grafana en Cloud Run
+# 6.1 - Compilar la imagen de Prometheus en el repositorio de la nube
+gcloud builds submit \
+  --tag us-central1-docker.pkg.dev/proyecto-cesfam-499520/cesfam-repo/prometheus:latest \
+  --file=monitoring/prometheus/Dockerfile.prod \
+  ./monitoring/prometheus
+
+# 6.2 - Desplegar Prometheus en Cloud Run (Puerto 9090)
+gcloud run deploy cesfam-prometheus \
+  --image=us-central1-docker.pkg.dev/proyecto-cesfam-499520/cesfam-repo/prometheus:latest \
+  --region=us-central1 \
+  --platform=managed \
+  --allow-unauthenticated \
+  --port=9090 \
+  --memory=256Mi \
+  --quiet
+```
+*Guarda la URL del servicio `cesfam-prometheus` que te devuelva este comando para usarla en el datasource de Grafana.*
+
+---
+
+## 📊 PASO 7: Desplegar Grafana para Monitoreo
+
+```bash
+# 7.1 - Desplegar la imagen de Grafana en Cloud Run (Puerto 3000)
 gcloud run deploy cesfam-grafana \
   --image=grafana/grafana:10.0.3 \
   --region=us-central1 \
@@ -124,26 +149,33 @@ gcloud run deploy cesfam-grafana \
   --allow-unauthenticated \
   --port=3000 \
   --memory=256Mi \
-  --set-env-vars="GF_SECURITY_ADMIN_PASSWORD=admin,GF_USERS_ALLOW_SIGN_UP=false,GF_SECURITY_ALLOW_EMBEDDING=true,GF_ANONYMOUS_ENABLED=true,GF_ANONYMOUS_ORG_ROLE=Admin" \
+  --set-env-vars="GF_SECURITY_ADMIN_PASSWORD=admin,GF_USERS_ALLOW_SIGN_UP=false,GF_SECURITY_ALLOW_EMBEDDING=true,GF_ANONYMOUS_ENABLED=true,GF_ANONYMOUS_ORG_ROLE=Admin,GF_SECURITY_COOKIE_SECURE=true,GF_SECURITY_COOKIE_SAMESITE=none" \
   --min-instances=0 \
   --max-instances=1 \
   --quiet
 ```
 
+### 📋 Configuración Inicial del Datasource en Grafana:
+1. Abre tu panel de Grafana: `https://cesfam-grafana-271357973400.us-central1.run.app` e inicia sesión.
+2. Ve a **Menu ☰** -> **Connections** -> **Data sources** -> **Add data source**.
+3. Selecciona **Prometheus**.
+4. En **Connection** -> **Prometheus server URL**, ingresa la URL de tu servicio `cesfam-prometheus` (ej. `https://cesfam-prometheus-xxxx.run.app`).
+5. Baja al final de la página y haz clic en **Save & test**. Una vez verificado, tu panel importado ya tendrá datos reales.
+
 ---
 
-## 🖥️ PASO 7: Compilar y Desplegar el Frontend (React)
+## 🖥️ PASO 8: Compilar y Desplegar el Frontend (React)
 
 > [!NOTE]
 > El frontend ya contiene configurado el archivo `frontend/.env.production` con las URLs correctas de producción de tu backend y Grafana. El `Dockerfile` se encargará de realizar el build automáticamente usando esa configuración.
 
 ```bash
-# 7.1 - Compilar la imagen del frontend
+# 8.1 - Compilar la imagen del frontend
 gcloud builds submit \
   --tag us-central1-docker.pkg.dev/proyecto-cesfam-499520/cesfam-repo/frontend:latest \
   ./frontend
 
-# 7.2 - Desplegar el frontend en Cloud Run
+# 8.2 - Desplegar el frontend en Cloud Run
 gcloud run deploy cesfam-frontend \
   --image=us-central1-docker.pkg.dev/proyecto-cesfam-499520/cesfam-repo/frontend:latest \
   --region=us-central1 \
@@ -158,9 +190,9 @@ gcloud run deploy cesfam-frontend \
 
 ---
 
-## 👥 PASO 8: Configurar Réplicas (Escalado y Alta Disponibilidad)
+## 👥 PASO 9: Configurar Réplicas (Escalado y Alta Disponibilidad)
 
-### 8.1 - Réplicas de la Aplicación (Escalado Horizontal de Cloud Run)
+### 9.1 - Réplicas de la Aplicación (Escalado Horizontal de Cloud Run)
 Para ajustar cuántos contenedores idénticos (réplicas) pueden levantarse para atender a los usuarios de forma simultánea cuando hay picos de tráfico:
 
 ```bash
@@ -180,7 +212,7 @@ gcloud run services update cesfam-frontend \
 ```
 *(Nota: Poner `min-instances=1` evita el 'cold start', es decir, que la página tarde en cargar la primera vez, pero recuerda que mantendrá una instancia cobrando de forma continua).*
 
-### 8.2 - Réplicas de Lectura de la Base de Datos (Cloud SQL)
+### 9.2 - Réplicas de Lectura de la Base de Datos (Cloud SQL)
 Para crear una base de datos secundaria que replique en tiempo real a la principal (`cesfam-db`), permitiendo derivar las consultas de lectura a ella y balancear la carga:
 
 ```bash
@@ -198,7 +230,7 @@ gcloud sql instances create cesfam-db-replica \
 
 ---
 
-## 🛑 PASO 9: Pausar y Reanudar la aplicación (Para no gastar créditos)
+## 🛑 PASO 10: Pausar y Reanudar la aplicación (Para no gastar créditos)
 
 Para evitar el consumo de tu cuota de créditos de GCP cuando no estés usando la aplicación:
 
