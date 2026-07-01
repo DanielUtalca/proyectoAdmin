@@ -8,10 +8,13 @@ services:
       dockerfile: Dockerfile
     container_name: cesfam-frontend-local
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
     restart: always
+    networks:
+      - red_publica
+      - red_backend
 
   backend:
     platform: linux/amd64
@@ -19,29 +22,35 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cesfam-backend-local
-    ports:
-      - "8000:8000"
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://cesfam_user:cesfam_secure_password@database:5432/cesfam
+      - DATABASE_URL=postgresql://cesfam_user@database:5432/cesfam
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
     depends_on:
       - database
     restart: always
+    networks:
+      - red_backend
+      - red_db
 
   database:
     image: postgres:15-alpine
     container_name: cesfam-database-local
-    ports:
-      - "5432:5432"
     environment:
       - POSTGRES_DB=cesfam
       - POSTGRES_USER=cesfam_user
-      - POSTGRES_PASSWORD=cesfam_secure_password
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
     volumes:
       - pgdata_local:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     restart: always
+    networks:
+      - red_db
 
   prometheus:
     image: prom/prometheus:v2.45.0
@@ -54,11 +63,12 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    ports:
-      - "9090:9090"
     restart: always
     depends_on:
       - backend
+    networks:
+      - red_monitoring
+      - red_backend
 
   grafana:
     image: grafana/grafana:10.0.3
@@ -78,8 +88,24 @@ services:
     restart: always
     depends_on:
       - prometheus
+    networks:
+      - red_monitoring
 
 volumes:
   pgdata_local:
   prometheus_data:
   grafana_data:
+
+networks:
+  red_publica:
+  red_backend:
+    internal: true
+  red_db:
+    internal: true
+  red_monitoring:
+    # Quitamos internal: true en caso de que grafana necesite cargar mapas o assets de internet.
+    # Además grafana está exponiendo puerto 3000 al exterior.
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

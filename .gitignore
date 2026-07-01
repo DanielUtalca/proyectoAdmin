@@ -24,3 +24,4 @@ Thumbs.db
 pgdata/
 .ollama/
 n8n_data/
+secrets/
